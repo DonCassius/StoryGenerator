@@ -84,9 +84,16 @@ document.addEventListener('DOMContentLoaded', () => {
             progressBar.style.width = '100%';
             progressText.textContent = '100%';
             
-            // Afficher l'histoire
+            // Formater et afficher l'histoire
             setTimeout(() => {
-                storyOutput.innerHTML = data.story;
+                // Formater l'histoire avec les classes CSS
+                const formattedStory = data.story
+                    .replace(/^Introduction/gm, '<strong>Introduction</strong>')
+                    .replace(/^Page \d[AB]?/gm, match => `<strong>${match}</strong>`)
+                    .replace(/^Option [AB][12]? : .*/gm, match => `<div class="Option">${match}</div>`)
+                    .replace(/^Que (?:décides-tu|fais-tu) \?/gm, '<strong>$&</strong>');
+
+                storyOutput.innerHTML = formattedStory;
                 storyOutput.classList.add('visible');
                 
                 // Réinitialiser l'interface

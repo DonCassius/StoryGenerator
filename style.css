@@ -50,7 +50,6 @@ body {
     font-weight: bold;
     color: var(--golden-text);
     text-shadow: var(--glow-effect);
-    text-align: center;
 }
 
 #subheadline {
@@ -58,7 +57,6 @@ body {
     line-height: 1.2;
     color: var(--golden-text);
     opacity: 0.9;
-    text-align: center;
 }
 
 .instruction-text {
@@ -77,11 +75,9 @@ body {
     background: transparent;
     outline: none;
     color: var(--golden-text);
-}
-
-.static-text {
-    user-select: none;
-    pointer-events: none;
+    text-align: center;
+    resize: none;
+    overflow: hidden;
 }
 
 .input-container {
@@ -191,6 +187,26 @@ button:disabled {
     border: 1px solid rgba(255, 215, 0, 0.1);
     color: var(--golden-text);
     white-space: pre-line;
+}
+
+/* Nouveaux styles pour l'histoire générée */
+.story-output strong,
+.story-output b,
+.story-output [class^="Page"],
+.story-output [class="Introduction"] {
+    font-weight: bold;
+    font-size: 1.2em;
+    color: #FFD700;
+    text-shadow: var(--glow-effect);
+}
+
+.story-output [class^="Option"] {
+    background: rgba(255, 215, 0, 0.1);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    border-radius: 8px;
+    padding: 10px 15px;
+    margin: 10px 0;
+    font-style: italic;
 }
 
 .story-output.visible {
