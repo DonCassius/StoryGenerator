@@ -25,24 +25,19 @@ async function generateStoryPartWithRetry(systemPrompt, userPrompt, maxRetries =
     for (let i = 0; i < maxRetries; i++) {
         try {
             console.log(`Attempt ${i + 1} of ${maxRetries}`);
-            const response = await fetch('https://api.anthropic.com/v1/messages', {
+            const response = await fetch('https://api.anthropic.com/v1/complete', {  // Endpoint modifié
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'anthropic-version': '2023-06-01',
-                    'Authorization': `Bearer ${ANTHROPIC_API_KEY}`  // Correction du format de l'en-tête d'authentification
+                    'x-api-key': ANTHROPIC_API_KEY
                 },
                 body: JSON.stringify({
                     model: 'claude-2.1',
-                    max_tokens: 500,
-                    system: systemPrompt,
-                    messages: [
-                        {
-                            role: 'user',
-                            content: userPrompt
-                        }
-                    ],
-                    temperature: 0.7
+                    prompt: `\n\nHuman: ${userPrompt}\n\nAssistant:`,  // Format de prompt modifié
+                    max_tokens_to_sample: 500,
+                    temperature: 0.7,
+                    stop_sequences: ["\n\nHuman:"]
                 })
             });
 
@@ -58,7 +53,7 @@ async function generateStoryPartWithRetry(systemPrompt, userPrompt, maxRetries =
             }
 
             const result = await response.json();
-            return result.content[0].text.trim();
+            return result.completion.trim();  // Champ de réponse modifié
         } catch (error) {
             if (i === maxRetries - 1) throw error;
             console.log(`Attempt failed, retrying... Error: ${error.message}`);
@@ -94,7 +89,9 @@ async function generateCompleteStory(mainInfo, style) {
         - Écris directement l'histoire sans métacommentaires`;
 
         // Générer l'introduction
-        const introPrompt = `Écris une introduction courte (3 phrases maximum) pour une histoire ${style}.
+        const introPrompt = `${systemPrompt}
+
+        Écris une introduction courte (3 phrases maximum) pour une histoire ${style}.
         Informations sur l'enfant : ${mainInfo}
         L'histoire doit parler de ${name} et inclure ses activités préférées.`;
 
@@ -103,7 +100,9 @@ async function generateCompleteStory(mainInfo, style) {
         await sleep(1000);
 
         // Générer la première page
-        const page1Prompt = `Continue cette histoire :
+        const page1Prompt = `${systemPrompt}
+
+        Histoire commencée :
         "${intro}"
         
         Décris la première situation (2-3 phrases) impliquant ${name} puis propose deux choix.
@@ -121,7 +120,13 @@ async function generateCompleteStory(mainInfo, style) {
         const [choiceA, choiceB] = extractChoices(page1, /Option A : (.*)\nOption B : (.*)/s);
 
         // Générer les suites
-        const page2APrompt = `${name} a choisi : ${choiceA}
+        const page2APrompt = `${systemPrompt}
+
+        Histoire jusqu'ici :
+        ${intro}
+        ${page1}
+
+        ${name} a choisi : ${choiceA}
         
         Continue l'histoire (2-3 phrases) puis propose deux nouveaux choix.
         Termine exactement comme ceci :
@@ -134,7 +139,13 @@ async function generateCompleteStory(mainInfo, style) {
         if (!page2A) throw new Error('Failed to generate page 2A');
         await sleep(1000);
 
-        const page2BPrompt = `${name} a choisi : ${choiceB}
+        const page2BPrompt = `${systemPrompt}
+
+        Histoire jusqu'ici :
+        ${intro}
+        ${page1}
+
+        ${name} a choisi : ${choiceB}
         
         Continue l'histoire (2-3 phrases) puis propose deux nouveaux choix.
         Termine exactement comme ceci :
@@ -153,19 +164,47 @@ async function generateCompleteStory(mainInfo, style) {
 
         // Générer les fins
         const endingPrompts = [
-            `${name} a choisi : ${choiceA1}
+            `${systemPrompt}
+
+            Histoire jusqu'ici :
+            ${intro}
+            ${page1}
+            ${page2A}
+
+            ${name} a choisi : ${choiceA1}
             Écris une fin positive (2-3 phrases) qui conclut bien l'histoire.
             Termine par "FIN"`,
 
-            `${name} a choisi : ${choiceA2}
+            `${systemPrompt}
+
+            Histoire jusqu'ici :
+            ${intro}
+            ${page1}
+            ${page2A}
+
+            ${name} a choisi : ${choiceA2}
             Écris une fin positive (2-3 phrases) qui conclut bien l'histoire.
             Termine par "FIN"`,
 
-            `${name} a choisi : ${choiceB1}
+            `${systemPrompt}
+
+            Histoire jusqu'ici :
+            ${intro}
+            ${page1}
+            ${page2B}
+
+            ${name} a choisi : ${choiceB1}
             Écris une fin positive (2-3 phrases) qui conclut bien l'histoire.
             Termine par "FIN"`,
 
-            `${name} a choisi : ${choiceB2}
+            `${systemPrompt}
+
+            Histoire jusqu'ici :
+            ${intro}
+            ${page1}
+            ${page2B}
+
+            ${name} a choisi : ${choiceB2}
             Écris une fin positive (2-3 phrases) qui conclut bien l'histoire.
             Termine par "FIN"`
         ];
