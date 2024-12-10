@@ -16,12 +16,29 @@ app.use(express.json());
 app.use(express.static(__dirname));
 
 const HUGGINGFACE_API_TOKEN = process.env.HUGGINGFACE_API_TOKEN;
-// Utilisation d'un modèle français plus adapté
 const MODEL_URL = "https://api-inference.huggingface.co/models/tiiuae/falcon-7b-instruct";
+
+function cleanGeneratedText(text) {
+    // Supprimer les parties du prompt qui pourraient apparaître dans la sortie
+    text = text.replace(/Format attendu :/g, '');
+    text = text.replace(/Format :/g, '');
+    text = text.replace(/Contexte :/g, '');
+    text = text.replace(/Style :/g, '');
+    text = text.replace(/Instructions :/g, '');
+    
+    // Nettoyer les options mal formatées
+    text = text.replace(/Option [A-Z][0-9]+ : \[.*?\]/g, '');
+    text = text.replace(/\[Nouveau choix [0-9]+\]/g, '');
+    
+    // Supprimer les lignes vides multiples
+    text = text.replace(/\n\s*\n/g, '\n\n');
+    
+    return text.trim();
+}
 
 async function generateStoryPart(prompt) {
     try {
-        console.log('Generating story part with prompt:', prompt);
+        console.log('Generating story part...');
         const response = await fetch(MODEL_URL, {
             method: "POST",
             headers: {
@@ -29,11 +46,13 @@ async function generateStoryPart(prompt) {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-                inputs: prompt,
+                inputs: `<|system|>Tu es un auteur de livres pour enfants spécialisé dans les histoires interactives. Génère uniquement le texte demandé, sans inclure d'instructions ou de notes.</s>
+                <|user|>${prompt}</s>
+                <|assistant|>`,
                 parameters: {
-                    max_new_tokens: 1000,
-                    temperature: 0.9,
-                    top_p: 0.95,
+                    max_new_tokens: 800,
+                    temperature: 0.8,
+                    top_p: 0.9,
                     do_sample: true,
                     return_full_text: false
                 }
@@ -46,8 +65,7 @@ async function generateStoryPart(prompt) {
         }
 
         const result = await response.json();
-        console.log('Generated text:', result);
-        return result[0].generated_text.trim();
+        return cleanGeneratedText(result[0].generated_text);
     } catch (error) {
         console.error('Error in generateStoryPart:', error);
         throw error;
@@ -55,94 +73,62 @@ async function generateStoryPart(prompt) {
 }
 
 async function generateCompleteStory(mainInfo, style) {
+    // Extraire le nom et l'activité
+    const [name, ...details] = mainInfo.split(' ');
+    
     // Générer l'introduction
-    const introPrompt = `Tu es un auteur de livres pour enfants. Écris une histoire interactive de type "livre dont vous êtes le héros" avec ces informations :
-    Enfant : ${mainInfo}
-    Style : ${style}
-
-    Instructions :
-    1. Commence par une introduction qui présente l'enfant et le contexte
-    2. Continue avec la première situation et propose 2 choix
-    3. L'histoire doit être en français, positive et adaptée aux enfants
-    4. Utilise un style narratif engageant
-    5. Format attendu :
-
-    Introduction
-    [Texte d'introduction]
-
-    Page 1
-    [Texte de la première situation]
-
-    Que décides-tu ?
-    Option A : [Premier choix]
-    Option B : [Deuxième choix]`;
+    const introPrompt = `Écris l'introduction d'une histoire pour enfant.
+    Le héros s'appelle ${name} et ${details.join(' ')}.
+    L'histoire doit être du style ${style}.
+    
+    Écris uniquement l'introduction (environ 3 phrases) qui présente le personnage et le contexte.`;
 
     const intro = await generateStoryPart(introPrompt);
 
+    // Générer la première page avec les choix
+    const page1Prompt = `Continue cette histoire :
+    "${intro}"
+    
+    Écris la première situation (Page 1) et propose deux choix :
+    - Décris la situation en 2-3 phrases
+    - Termine par "Que décides-tu ?"
+    - Propose deux choix clairs commençant par "Option A :" et "Option B :"`;
+
+    const page1 = await generateStoryPart(page1Prompt);
+
     // Générer les suites pour chaque choix
-    const choixAPrompt = `Continue l'histoire après le choix A.
-    Contexte : ${mainInfo}
-    Style : ${style}
+    const page2APrompt = `Voici le début de l'histoire :
+    "${intro}
+    ${page1}"
+    
+    Continue l'histoire après le choix A (Page 2A) :
+    - Décris ce qui se passe en 2-3 phrases
+    - Termine par "Que fais-tu ?"
+    - Propose deux nouveaux choix commençant par "Option A1 :" et "Option A2 :"`;
 
-    Format attendu :
-    Page 2A
-    [Texte de ce qui se passe après le choix A]
+    const page2A = await generateStoryPart(page2APrompt);
 
-    Que fais-tu maintenant ?
-    Option A1 : [Nouveau choix 1]
-    Option A2 : [Nouveau choix 2]`;
+    const page2BPrompt = `Voici le début de l'histoire :
+    "${intro}
+    ${page1}"
+    
+    Continue l'histoire après le choix B (Page 2B) :
+    - Décris ce qui se passe en 2-3 phrases
+    - Termine par "Que fais-tu ?"
+    - Propose deux nouveaux choix commençant par "Option B1 :" et "Option B2 :"`;
 
-    const choixA = await generateStoryPart(choixAPrompt);
-
-    const choixBPrompt = `Continue l'histoire après le choix B.
-    Contexte : ${mainInfo}
-    Style : ${style}
-
-    Format attendu :
-    Page 2B
-    [Texte de ce qui se passe après le choix B]
-
-    Que fais-tu maintenant ?
-    Option B1 : [Nouveau choix 1]
-    Option B2 : [Nouveau choix 2]`;
-
-    const choixB = await generateStoryPart(choixBPrompt);
+    const page2B = await generateStoryPart(page2BPrompt);
 
     // Générer les fins
-    const finPrompts = [
-        `Écris la fin de l'histoire après le choix A1.
-        Format :
-        Page 3A1
-        [Texte de la fin]
-        FIN`,
-
-        `Écris la fin de l'histoire après le choix A2.
-        Format :
-        Page 3A2
-        [Texte de la fin]
-        FIN`,
-
-        `Écris la fin de l'histoire après le choix B1.
-        Format :
-        Page 3B1
-        [Texte de la fin]
-        FIN`,
-
-        `Écris la fin de l'histoire après le choix B2.
-        Format :
-        Page 3B2
-        [Texte de la fin]
-        FIN`
-    ];
-
-    const fins = await Promise.all(finPrompts.map(prompt => 
-        generateStoryPart(`${prompt}
-        Contexte : ${mainInfo}
-        Style : ${style}`)
-    ));
+    const endings = await Promise.all([
+        generateStoryPart(`Écris la fin de l'histoire (Page 3A1) après le choix A1. Termine par "FIN".`),
+        generateStoryPart(`Écris la fin de l'histoire (Page 3A2) après le choix A2. Termine par "FIN".`),
+        generateStoryPart(`Écris la fin de l'histoire (Page 3B1) après le choix B1. Termine par "FIN".`),
+        generateStoryPart(`Écris la fin de l'histoire (Page 3B2) après le choix B2. Termine par "FIN".`)
+    ]);
 
     // Assembler l'histoire complète
-    return `${intro}\n\n${choixA}\n\n${choixB}\n\n${fins.join('\n\n')}`;
+    return `Introduction\n${intro}\n\nPage 1\n${page1}\n\nPage 2A\n${page2A}\n\nPage 2B\n${page2B}\n\nPage 3A1\n${endings[0]}\n\nPage 3A2\n${endings[1]}\n\nPage 3B1\n${endings[2]}\n\nPage 3B2\n${endings[3]}`;
 }
 
 app.get('/', (req, res) => {
