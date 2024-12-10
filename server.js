@@ -23,7 +23,8 @@ app.get('/', (req, res) => {
 
 // Configuration Replicate
 const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
-const REPLICATE_MODEL_VERSION = "meta/llama-2-70b-chat:02e509c789964a7ea8736978a43525956ef40397be9033abf9fd2badfe68c9e3";
+// Utilisation d'un modèle français plus accessible
+const REPLICATE_MODEL_VERSION = "mistralai/mistral-7b-instruct-v0.1:83b6a56e7c828e667f21fd596c338fd4f0039b46bcfa18d973e8e70e455fda70";
 
 async function generateWithReplicate(prompt) {
     try {
@@ -39,11 +40,11 @@ async function generateWithReplicate(prompt) {
             body: JSON.stringify({
                 version: REPLICATE_MODEL_VERSION,
                 input: {
-                    prompt: prompt,
-                    max_tokens: 500,
+                    prompt: `[INST]${prompt}[/INST]`,
                     temperature: 0.7,
                     top_p: 0.9,
-                    system_prompt: "Tu es un auteur spécialisé dans les histoires pour enfants, expert en création d'histoires personnalisées, captivantes et adaptées à leur âge."
+                    max_new_tokens: 500,
+                    presence_penalty: 1
                 }
             })
         });
@@ -110,7 +111,8 @@ app.post('/generate-story', async (req, res) => {
             throw new Error('Données manquantes dans la requête');
         }
 
-        const prompt = `Crée une histoire courte et captivante dans le style ${style} avec ces éléments:
+        const prompt = `Tu es un auteur spécialisé dans les histoires pour enfants. 
+        Crée une histoire courte et captivante dans le style ${style} avec ces éléments:
 
         Titre: ${headline}
         Sous-titre: ${subheadline}
@@ -125,12 +127,12 @@ app.post('/generate-story', async (req, res) => {
         - L'histoire doit être positive et engageante
         - Longueur: environ 4-5 phrases
 
-        Histoire:`;
+        Génère uniquement l'histoire, sans autre commentaire.`;
 
         console.log('Generating story with prompt:', prompt);
         const story = await generateWithReplicate(prompt);
         console.log('Story generated successfully:', story);
-        res.json({ story: story.join('') });
+        res.json({ story: Array.isArray(story) ? story.join('') : story });
     } catch (error) {
         console.error('Error in generate-story endpoint:', error);
         res.status(500).json({ 
