@@ -30,11 +30,8 @@ async function generateStoryPart(systemPrompt, userPrompt) {
             body: JSON.stringify({
                 model: 'claude-2.1',
                 max_tokens: 1000,
+                system: systemPrompt,
                 messages: [
-                    {
-                        role: 'system',
-                        content: systemPrompt
-                    },
                     {
                         role: 'user',
                         content: userPrompt
