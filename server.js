@@ -67,14 +67,22 @@ async function generateStoryPartWithRetry(systemPrompt, userPrompt, maxRetries =
     }
 }
 
+function extractChoices(text, pattern) {
+    try {
+        const match = text.match(pattern);
+        if (match && match.length >= 3) {
+            return [match[1].trim(), match[2].trim()];
+        }
+        // Si pas de correspondance, retourner des choix par défaut
+        return ['continuer l\'aventure', 'prendre une autre direction'];
+    } catch (error) {
+        console.error('Error extracting choices:', error);
+        return ['continuer l\'aventure', 'prendre une autre direction'];
+    }
+}
+
 async function generateCompleteStory(mainInfo, style) {
     try {
-        const baseContext = {
-            childInfo: mainInfo,
-            style: style,
-            story: {}
-        };
-
         const systemPrompt = `Tu es un auteur de livres pour enfants qui crée des histoires interactives en français.
         - Écris directement le contenu sans phrases d'introduction
         - Reste cohérent avec l'histoire en cours
@@ -86,11 +94,11 @@ async function generateCompleteStory(mainInfo, style) {
         Informations : ${mainInfo}
         Maximum 3 phrases.`;
 
-        baseContext.story.intro = await generateStoryPartWithRetry(systemPrompt, introPrompt);
+        const intro = await generateStoryPartWithRetry(systemPrompt, introPrompt);
         await sleep(1000);
 
         // Générer la première page
-        const page1Prompt = `Contexte : ${baseContext.story.intro}
+        const page1Prompt = `Contexte : ${intro}
         
         Continue l'histoire avec la première situation.
         Termine par deux choix clairs.
@@ -101,17 +109,16 @@ async function generateCompleteStory(mainInfo, style) {
         Option A : [choix 1]
         Option B : [choix 2]`;
 
-        baseContext.story.page1 = await generateStoryPartWithRetry(systemPrompt, page1Prompt);
+        const page1 = await generateStoryPartWithRetry(systemPrompt, page1Prompt);
         await sleep(1000);
 
         // Extraire les choix de la page 1
-        const choicesMatch = baseContext.story.page1.match(/Option A : (.*)\nOption B : (.*)/s);
-        const [choiceA, choiceB] = choicesMatch ? [choicesMatch[1], choicesMatch[2]] : ['', ''];
+        const [choiceA, choiceB] = extractChoices(page1, /Option A : (.*)\nOption B : (.*)/s);
 
         // Générer les suites
         const page2APrompt = `Histoire jusqu'ici :
-        ${baseContext.story.intro}
-        ${baseContext.story.page1}
+        ${intro}
+        ${page1}
         
         Le personnage choisit : ${choiceA}
         Continue l'histoire et propose deux nouveaux choix.
@@ -122,12 +129,12 @@ async function generateCompleteStory(mainInfo, style) {
         Option A1 : [choix 1]
         Option A2 : [choix 2]`;
 
-        baseContext.story.page2A = await generateStoryPartWithRetry(systemPrompt, page2APrompt);
+        const page2A = await generateStoryPartWithRetry(systemPrompt, page2APrompt);
         await sleep(1000);
 
         const page2BPrompt = `Histoire jusqu'ici :
-        ${baseContext.story.intro}
-        ${baseContext.story.page1}
+        ${intro}
+        ${page1}
         
         Le personnage choisit : ${choiceB}
         Continue l'histoire et propose deux nouveaux choix.
@@ -138,65 +145,61 @@ async function generateCompleteStory(mainInfo, style) {
         Option B1 : [choix 1]
         Option B2 : [choix 2]`;
 
-        baseContext.story.page2B = await generateStoryPartWithRetry(systemPrompt, page2BPrompt);
+        const page2B = await generateStoryPartWithRetry(systemPrompt, page2BPrompt);
         await sleep(1000);
 
-        // Extraire tous les choix finaux
-        const choices2AMatch = baseContext.story.page2A.match(/Option A1 : (.*)\nOption A2 : (.*)/s);
-        const choices2BMatch = baseContext.story.page2B.match(/Option B1 : (.*)\nOption B2 : (.*)/s);
-        const [choiceA1, choiceA2] = choices2AMatch ? [choices2AMatch[1], choices2AMatch[2]] : ['', ''];
-        const [choiceB1, choiceB2] = choices2BMatch ? [choices2BMatch[1], choices2BMatch[2]] : ['', ''];
+        // Extraire les choix finaux
+        const [choiceA1, choiceA2] = extractChoices(page2A, /Option A1 : (.*)\nOption A2 : (.*)/s);
+        const [choiceB1, choiceB2] = extractChoices(page2B, /Option B1 : (.*)\nOption B2 : (.*)/s);
 
         // Générer les fins
-        const endings = await Promise.all([
-            generateStoryPartWithRetry(
-                systemPrompt,
-                `Histoire jusqu'ici :
-                ${baseContext.story.intro}
-                ${baseContext.story.page1}
-                ${baseContext.story.page2A}
-                
-                Le personnage choisit : ${choiceA1}
-                Écris une fin positive en 2-3 phrases.
-                Termine par "FIN"`
-            ),
-            generateStoryPartWithRetry(
-                systemPrompt,
-                `Histoire jusqu'ici :
-                ${baseContext.story.intro}
-                ${baseContext.story.page1}
-                ${baseContext.story.page2A}
-                
-                Le personnage choisit : ${choiceA2}
-                Écris une fin positive en 2-3 phrases.
-                Termine par "FIN"`
-            ),
-            generateStoryPartWithRetry(
-                systemPrompt,
-                `Histoire jusqu'ici :
-                ${baseContext.story.intro}
-                ${baseContext.story.page1}
-                ${baseContext.story.page2B}
-                
-                Le personnage choisit : ${choiceB1}
-                Écris une fin positive en 2-3 phrases.
-                Termine par "FIN"`
-            ),
-            generateStoryPartWithRetry(
-                systemPrompt,
-                `Histoire jusqu'ici :
-                ${baseContext.story.intro}
-                ${baseContext.story.page1}
-                ${baseContext.story.page2B}
-                
-                Le personnage choisit : ${choiceB2}
-                Écris une fin positive en 2-3 phrases.
-                Termine par "FIN"`
-            )
-        ]);
+        const endingPrompts = [
+            `Histoire jusqu'ici :
+            ${intro}
+            ${page1}
+            ${page2A}
+            
+            Le personnage choisit : ${choiceA1}
+            Écris une fin positive en 2-3 phrases.
+            Termine par "FIN"`,
+
+            `Histoire jusqu'ici :
+            ${intro}
+            ${page1}
+            ${page2A}
+            
+            Le personnage choisit : ${choiceA2}
+            Écris une fin positive en 2-3 phrases.
+            Termine par "FIN"`,
+
+            `Histoire jusqu'ici :
+            ${intro}
+            ${page1}
+            ${page2B}
+            
+            Le personnage choisit : ${choiceB1}
+            Écris une fin positive en 2-3 phrases.
+            Termine par "FIN"`,
+
+            `Histoire jusqu'ici :
+            ${intro}
+            ${page1}
+            ${page2B}
+            
+            Le personnage choisit : ${choiceB2}
+            Écris une fin positive en 2-3 phrases.
+            Termine par "FIN"`
+        ];
+
+        const endings = [];
+        for (const prompt of endingPrompts) {
+            const ending = await generateStoryPartWithRetry(systemPrompt, prompt);
+            endings.push(ending);
+            await sleep(1000);
+        }
 
         // Assembler l'histoire
-        return `Introduction\n${baseContext.story.intro}\n\nPage 1\n${baseContext.story.page1}\n\nPage 2A\n${baseContext.story.page2A}\n\nPage 2B\n${baseContext.story.page2B}\n\nPage 3A1\n${endings[0]}\n\nPage 3A2\n${endings[1]}\n\nPage 3B1\n${endings[2]}\n\nPage 3B2\n${endings[3]}`;
+        return `Introduction\n${intro}\n\nPage 1\n${page1}\n\nPage 2A\n${page2A}\n\nPage 2B\n${page2B}\n\nPage 3A1\n${endings[0]}\n\nPage 3A2\n${endings[1]}\n\nPage 3B1\n${endings[2]}\n\nPage 3B2\n${endings[3]}`;
     } catch (error) {
         console.error('Error generating story:', error);
         throw error;
