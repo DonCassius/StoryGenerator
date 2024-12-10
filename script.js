@@ -8,93 +8,41 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressBar = document.querySelector('.progress');
     const progressText = document.querySelector('.progress-text');
     const styleCheckboxes = document.querySelectorAll('input[name="style"]');
+    const faqItems = document.querySelectorAll('.faq-item');
 
-    let currentStory = {
-        parts: [],
-        currentIndex: 0
-    };
-
-    // Fonction pour afficher l'histoire et les choix
-    function displayStoryAndChoices(storyText, choices) {
-        const choicesHtml = choices && choices.length > 0 
-            ? `
-                <div class="choices-container">
-                    <h3>Que décides-tu ?</h3>
-                    ${choices.map((choice, index) => `
-                        <button class="choice-btn" data-choice="${choice}">
-                            ${choice}
-                        </button>
-                    `).join('')}
-                </div>
-            `
-            : '';
-
-        storyOutput.innerHTML = `
-            <div class="story-text">${storyText}</div>
-            ${choicesHtml}
-        `;
-
-        // Ajouter les événements aux boutons de choix
-        const choiceButtons = storyOutput.querySelectorAll('.choice-btn');
-        choiceButtons.forEach(button => {
-            button.addEventListener('click', () => handleChoice(button.dataset.choice));
-        });
-
-        storyOutput.classList.add('visible');
+    // Fonction pour ajuster automatiquement la hauteur des textareas
+    function autoResize(element) {
+        element.style.height = 'auto';
+        element.style.height = element.scrollHeight + 'px';
     }
 
-    // Gérer le choix de l'utilisateur
-    async function handleChoice(choice) {
-        try {
-            // Désactiver tous les boutons pendant le chargement
-            const buttons = storyOutput.querySelectorAll('.choice-btn');
-            buttons.forEach(btn => btn.disabled = true);
+    // Appliquer autoResize aux headlines
+    [headline, subheadline].forEach(element => {
+        autoResize(element);
+        element.addEventListener('input', () => autoResize(element));
+    });
 
-            // Démarrer l'animation de chargement
-            progressContainer.style.display = 'block';
-            let progress = 0;
-            const progressInterval = setInterval(() => {
-                progress += Math.random() * 15;
-                if (progress > 95) progress = 95;
-                progressBar.style.width = `${progress}%`;
-                progressText.textContent = `${Math.round(progress)}%`;
-            }, 200);
-
-            const response = await fetch(`${window.location.origin}/continue-story`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    previousPart: currentStory.parts[currentStory.currentIndex],
-                    choiceMade: choice
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error('Erreur lors de la génération de la suite de l\'histoire');
+    // Gérer la sélection unique des styles
+    styleCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                styleCheckboxes.forEach(cb => {
+                    if (cb !== e.target) cb.checked = false;
+                });
             }
+        });
+    });
 
-            const data = await response.json();
-            
-            // Ajouter la nouvelle partie à l'histoire
-            currentStory.parts.push(data.story);
-            currentStory.currentIndex++;
-
-            // Afficher la nouvelle partie et les choix
-            displayStoryAndChoices(data.story, data.choices);
-
-            // Réinitialiser l'interface
-            clearInterval(progressInterval);
-            progressContainer.style.display = 'none';
-            progressBar.style.width = '0%';
-            progressText.textContent = '0%';
-
-        } catch (error) {
-            console.error('Erreur:', error);
-            alert('Une erreur est survenue lors de la génération de la suite de l\'histoire');
-        }
-    }
+    // Gérer les FAQ
+    faqItems.forEach(item => {
+        const question = item.querySelector('.faq-question');
+        question.addEventListener('click', () => {
+            faqItems.forEach(otherItem => {
+                if (otherItem !== item) otherItem.classList.remove('active');
+            });
+            item.classList.toggle('active');
+        });
+    });
 
     generateBtn.addEventListener('click', async () => {
         const headlineText = headline.value.trim();
@@ -112,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Désactiver le bouton et afficher la barre de progression
+        // Démarrer l'animation de génération
         generateBtn.disabled = true;
         progressContainer.style.display = 'block';
         storyOutput.classList.remove('visible');
@@ -126,6 +74,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 200);
 
         try {
+            console.log('Envoi de la requête à:', `${window.location.origin}/generate-story`);
+            
             const response = await fetch(`${window.location.origin}/generate-story`, {
                 method: 'POST',
                 headers: {
@@ -140,30 +90,35 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (!response.ok) {
-                throw new Error('Erreur lors de la génération de l\'histoire');
+                const errorText = await response.text();
+                console.error('Erreur serveur:', errorText);
+                throw new Error(`Erreur lors de la génération de l'histoire: ${errorText}`);
             }
 
             const data = await response.json();
+            console.log('Réponse reçue:', data);
             
-            // Initialiser l'histoire
-            currentStory = {
-                parts: [data.currentPart],
-                currentIndex: 0
-            };
-
-            // Afficher l'histoire et les choix
-            displayStoryAndChoices(data.currentPart, data.choices);
-
-            // Réinitialiser l'interface
-            clearInterval(progressInterval);
-            progressContainer.style.display = 'none';
-            generateBtn.disabled = false;
-            progressBar.style.width = '0%';
-            progressText.textContent = '0%';
+            // Compléter la progression
+            progress = 100;
+            progressBar.style.width = '100%';
+            progressText.textContent = '100%';
+            
+            // Afficher l'histoire
+            setTimeout(() => {
+                storyOutput.innerHTML = data.story;
+                storyOutput.classList.add('visible');
+                
+                // Réinitialiser l'interface
+                clearInterval(progressInterval);
+                progressContainer.style.display = 'none';
+                generateBtn.disabled = false;
+                progressBar.style.width = '0%';
+                progressText.textContent = '0%';
+            }, 500);
 
         } catch (error) {
-            console.error('Erreur:', error);
-            alert('Une erreur est survenue lors de la génération de l\'histoire');
+            console.error('Erreur détaillée:', error);
+            alert('Une erreur est survenue lors de la génération de l\'histoire. Consultez la console pour plus de détails.');
             
             // Réinitialiser l'interface
             clearInterval(progressInterval);
