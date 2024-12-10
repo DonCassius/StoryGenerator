@@ -18,7 +18,6 @@ app.use(express.static(__dirname));
 
 // Configuration Hugging Face
 const HUGGINGFACE_API_TOKEN = process.env.HUGGINGFACE_API_TOKEN;
-// Utilisation d'un modèle français
 const MODEL_URL = "https://api-inference.huggingface.co/models/bigscience/bloom";
 
 async function generateStory(prompt) {
@@ -36,7 +35,8 @@ async function generateStory(prompt) {
                     max_length: 500,
                     temperature: 0.7,
                     top_p: 0.9,
-                    do_sample: true
+                    do_sample: true,
+                    return_full_text: false
                 }
             })
         });
@@ -48,7 +48,14 @@ async function generateStory(prompt) {
 
         const result = await response.json();
         console.log('Generation result:', result);
-        return result[0].generated_text;
+
+        // Extraire uniquement l'histoire générée
+        const fullText = result[0].generated_text;
+        const storyStart = fullText.indexOf('Histoire:');
+        if (storyStart !== -1) {
+            return fullText.substring(storyStart + 9).trim();
+        }
+        return fullText.trim();
     } catch (error) {
         console.error('Error in generateStory:', error);
         throw error;
@@ -71,12 +78,12 @@ app.post('/generate-story', async (req, res) => {
             throw new Error('Données manquantes dans la requête');
         }
 
-        const prompt = `Tu es un auteur d'histoires pour enfants. Écris une histoire courte et captivante en français.
+        const prompt = `Génère une histoire courte pour enfant avec ces éléments:
 
         Titre: ${headline}
         Sous-titre: ${subheadline}
         Informations sur l'enfant: ${mainText}
-        Style souhaité: ${style}
+        Style: ${style}
 
         Instructions:
         - L'histoire doit être en français
