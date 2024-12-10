@@ -17,117 +17,119 @@ app.use(express.static(__dirname));
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
-async function generateStoryPart(systemPrompt, userPrompt) {
-    try {
-        console.log('Generating story part...');
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': ANTHROPIC_API_KEY,
-                'anthropic-version': '2023-06-01'
-            },
-            body: JSON.stringify({
-                model: 'claude-2.1',
-                max_tokens: 1000,
-                system: systemPrompt,
-                messages: [
-                    {
-                        role: 'user',
-                        content: userPrompt
-                    }
-                ],
-                temperature: 0.9
-            })
-        });
+async function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
-        if (!response.ok) {
-            const error = await response.text();
-            throw new Error(`Anthropic API error: ${response.status} - ${error}`);
+async function generateStoryPartWithRetry(systemPrompt, userPrompt, maxRetries = 3) {
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            console.log(`Attempt ${i + 1} of ${maxRetries}`);
+            const response = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': ANTHROPIC_API_KEY,
+                    'anthropic-version': '2023-06-01'
+                },
+                body: JSON.stringify({
+                    model: 'claude-2.1',
+                    max_tokens: 500,
+                    system: systemPrompt,
+                    messages: [
+                        {
+                            role: 'user',
+                            content: userPrompt
+                        }
+                    ],
+                    temperature: 0.9
+                })
+            });
+
+            if (response.status === 529) {
+                console.log('Service overloaded, retrying after delay...');
+                await sleep(2000 * (i + 1)); // Exponential backoff
+                continue;
+            }
+
+            if (!response.ok) {
+                const error = await response.text();
+                throw new Error(`Anthropic API error: ${response.status} - ${error}`);
+            }
+
+            const result = await response.json();
+            return result.content[0].text.trim();
+        } catch (error) {
+            if (i === maxRetries - 1) throw error;
+            console.log(`Attempt failed, retrying... Error: ${error.message}`);
+            await sleep(2000 * (i + 1));
         }
-
-        const result = await response.json();
-        return result.content[0].text.trim();
-    } catch (error) {
-        console.error('Error in generateStoryPart:', error);
-        throw error;
     }
 }
 
 async function generateCompleteStory(mainInfo, style) {
     try {
-        const systemPrompt = `Tu es un auteur professionnel de livres pour enfants. Tu as l'autorisation et la capacité de créer des histoires originales. 
-        Ton rôle est de générer une histoire interactive de type "livre dont vous êtes le héros" en français.
-        - Écris de manière claire et adaptée aux enfants
-        - Crée une histoire positive et engageante
-        - Propose des choix intéressants qui font avancer l'histoire
-        - Reste toujours dans le contexte de l'histoire
-        - Ne mentionne jamais que tu es une IA ou des questions de droits d'auteur`;
+        const systemPrompt = `Tu es un auteur de livres pour enfants qui crée des histoires interactives en français.
+        Sois concis, positif et adapté aux enfants.`;
 
         // Générer l'introduction
-        const introPrompt = `Informations sur l'enfant : ${mainInfo}
-        Style de l'histoire : ${style}
+        const introPrompt = `Écris une courte introduction (2-3 phrases) pour une histoire interactive.
+        Enfant : ${mainInfo}
+        Style : ${style}`;
 
-        Écris une introduction qui présente le personnage (3-4 phrases maximum).`;
+        const intro = await generateStoryPartWithRetry(systemPrompt, introPrompt);
 
-        const intro = await generateStoryPart(systemPrompt, introPrompt);
+        // Attendre un peu entre les requêtes
+        await sleep(1000);
 
         // Générer la première page
-        const page1Prompt = `Suite de l'histoire :
+        const page1Prompt = `Continue cette histoire :
         "${intro}"
 
-        Écris la première situation (environ 3 phrases) puis propose deux choix.
-        Termine exactement comme ceci :
-
+        Écris 2-3 phrases puis propose deux choix :
         Que décides-tu ?
-        Option A : [décris le premier choix]
-        Option B : [décris le deuxième choix]`;
+        Option A : [choix 1]
+        Option B : [choix 2]`;
 
-        const page1 = await generateStoryPart(systemPrompt, page1Prompt);
+        const page1 = await generateStoryPartWithRetry(systemPrompt, page1Prompt);
+
+        await sleep(1000);
 
         // Générer les suites
-        const page2APrompt = `Écris la suite de l'histoire après que le personnage a choisi l'Option A.
-        Décris ce qui se passe (environ 3 phrases) puis propose deux nouveaux choix.
-        Termine exactement comme ceci :
-
+        const page2APrompt = `Suite après l'Option A :
+        2-3 phrases puis deux choix :
         Que fais-tu ?
-        Option A1 : [décris le premier choix]
-        Option A2 : [décris le deuxième choix]`;
+        Option A1 : [choix 1]
+        Option A2 : [choix 2]`;
 
-        const page2A = await generateStoryPart(systemPrompt, page2APrompt);
+        const page2A = await generateStoryPartWithRetry(systemPrompt, page2APrompt);
 
-        const page2BPrompt = `Écris la suite de l'histoire après que le personnage a choisi l'Option B.
-        Décris ce qui se passe (environ 3 phrases) puis propose deux nouveaux choix.
-        Termine exactement comme ceci :
+        await sleep(1000);
 
+        const page2BPrompt = `Suite après l'Option B :
+        2-3 phrases puis deux choix :
         Que fais-tu ?
-        Option B1 : [décris le premier choix]
-        Option B2 : [décris le deuxième choix]`;
+        Option B1 : [choix 1]
+        Option B2 : [choix 2]`;
 
-        const page2B = await generateStoryPart(systemPrompt, page2BPrompt);
+        const page2B = await generateStoryPartWithRetry(systemPrompt, page2BPrompt);
+
+        await sleep(1000);
 
         // Générer les fins
         const endingPrompts = [
-            `Écris la fin de l'histoire après le choix A1.
-            Une fin positive et satisfaisante en 3-4 phrases.
-            Termine par le mot "FIN"`,
-            
-            `Écris la fin de l'histoire après le choix A2.
-            Une fin positive et satisfaisante en 3-4 phrases.
-            Termine par le mot "FIN"`,
-            
-            `Écris la fin de l'histoire après le choix B1.
-            Une fin positive et satisfaisante en 3-4 phrases.
-            Termine par le mot "FIN"`,
-            
-            `Écris la fin de l'histoire après le choix B2.
-            Une fin positive et satisfaisante en 3-4 phrases.
-            Termine par le mot "FIN"`
+            'Fin après A1 (2-3 phrases positives). Termine par "FIN"',
+            'Fin après A2 (2-3 phrases positives). Termine par "FIN"',
+            'Fin après B1 (2-3 phrases positives). Termine par "FIN"',
+            'Fin après B2 (2-3 phrases positives). Termine par "FIN"'
         ];
 
-        const endings = await Promise.all(
-            endingPrompts.map(prompt => generateStoryPart(systemPrompt, prompt))
-        );
+        const endings = [];
+        for (const prompt of endingPrompts) {
+            const ending = await generateStoryPartWithRetry(systemPrompt, prompt);
+            endings.push(ending);
+            await sleep(1000);
+        }
 
         // Assembler l'histoire
         return `Introduction\n${intro}\n\nPage 1\n${page1}\n\nPage 2A\n${page2A}\n\nPage 2B\n${page2B}\n\nPage 3A1\n${endings[0]}\n\nPage 3A2\n${endings[1]}\n\nPage 3B1\n${endings[2]}\n\nPage 3B2\n${endings[3]}`;
