@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: histoire-generator
+    env: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: REPLICATE_API_TOKEN
+        sync: false
+    plan: free
+    autoDeploy: true
