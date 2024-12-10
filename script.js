@@ -30,6 +30,43 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Fonction pour exporter en PDF
+    async function exportToPDF(story) {
+        try {
+            const response = await fetch(`${window.location.origin}/generate-pdf`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ story })
+            });
+
+            if (!response.ok) {
+                throw new Error('Erreur lors de la génération du PDF');
+            }
+
+            // Créer un blob à partir de la réponse
+            const blob = await response.blob();
+            
+            // Créer un lien de téléchargement
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'histoire-personnalisee.pdf';
+            
+            // Déclencher le téléchargement
+            document.body.appendChild(a);
+            a.click();
+            
+            // Nettoyer
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (error) {
+            console.error('Erreur lors de l\'export PDF:', error);
+            alert('Une erreur est survenue lors de la génération du PDF');
+        }
+    }
+
     generateBtn.addEventListener('click', async () => {
         const mainText = userInput.value.trim();
         const selectedStyle = Array.from(styleCheckboxes).find(cb => cb.checked)?.value || '';
@@ -86,9 +123,10 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Afficher l'histoire et le bouton d'export
             setTimeout(() => {
-                storyOutput.innerHTML = `${data.story}
+                const storyHtml = data.story;
+                storyOutput.innerHTML = `${storyHtml}
                 <div style="text-align: center; margin-top: 20px;">
-                    <button class="export-btn" onclick="alert('La fonctionnalité d\'export PDF sera bientôt disponible')">
+                    <button class="export-btn" onclick="exportToPDF(\`${storyHtml.replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`)">
                         Exporter en PDF
                     </button>
                 </div>`;
@@ -117,4 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
             progressText.textContent = '0%';
         }
     });
+
+    // Rendre la fonction exportToPDF accessible globalement
+    window.exportToPDF = exportToPDF;
 });

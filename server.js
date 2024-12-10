@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fetch = require('node-fetch');
+const PDFDocument = require('pdfkit');
 
 const app = express();
 
@@ -209,6 +210,109 @@ async function generateCompleteStory(mainInfo, style) {
     }
 }
 
+// Fonction pour générer le PDF
+async function generatePDF(story) {
+    const doc = new PDFDocument({
+        size: 'A4',
+        margin: 50,
+        bufferPages: true
+    });
+
+    // Configurer les styles
+    doc.font('Helvetica');
+    
+    // Fonction helper pour ajouter du texte avec retour à la ligne
+    function addText(text, options = {}) {
+        const defaultOptions = {
+            width: 500,
+            align: 'justify',
+            continued: false
+        };
+        doc.text(text, { ...defaultOptions, ...options });
+    }
+
+    // Fonction helper pour ajouter un titre
+    function addTitle(text) {
+        doc.fontSize(24)
+           .font('Helvetica-Bold')
+           .text(text, { align: 'center' })
+           .moveDown(1);
+    }
+
+    // Fonction helper pour ajouter un sous-titre
+    function addSubtitle(text) {
+        doc.fontSize(18)
+           .font('Helvetica-Bold')
+           .text(text, { align: 'center' })
+           .moveDown(0.5);
+    }
+
+    // Fonction helper pour ajouter une option
+    function addOption(text) {
+        doc.fontSize(12)
+           .font('Helvetica-Oblique')
+           .text(text, { indent: 20 })
+           .moveDown(0.5);
+    }
+
+    // Ajouter une page de couverture
+    addTitle("Histoire Interactive Personnalisée");
+    doc.moveDown(2);
+
+    // Traiter chaque section de l'histoire
+    const sections = story.split('\n\n');
+    for (const section of sections) {
+        const [title, ...content] = section.split('\n');
+        
+        // Ajouter un saut de page si nécessaire
+        if (doc.y > 700) {
+            doc.addPage();
+        }
+
+        // Ajouter le titre de section
+        addSubtitle(title);
+
+        // Traiter le contenu
+        const text = content.join('\n');
+        
+        // Si c'est une section avec des options
+        if (text.includes('Option')) {
+            const parts = text.split(/Option [A-Z][12]? :/g);
+            
+            // Ajouter le texte principal
+            doc.fontSize(12)
+               .font('Helvetica')
+               .text(parts[0].trim())
+               .moveDown(0.5);
+
+            // Ajouter les options
+            const options = text.match(/Option [A-Z][12]? : .*/g) || [];
+            options.forEach(option => {
+                addOption(option);
+            });
+        } else {
+            // Ajouter le texte normal
+            doc.fontSize(12)
+               .font('Helvetica')
+               .text(text.trim())
+               .moveDown();
+        }
+    }
+
+    // Ajouter les numéros de page
+    let pages = doc.bufferedPageRange();
+    for (let i = 0; i < pages.count; i++) {
+        doc.switchToPage(i);
+        doc.fontSize(10)
+           .text(`Page ${i + 1} sur ${pages.count}`, 
+                 50, 
+                 doc.page.height - 50,
+                 { align: 'center' });
+    }
+
+    return doc;
+}
+
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
@@ -229,6 +333,35 @@ app.post('/generate-story', async (req, res) => {
         console.error('Error in generate-story endpoint:', error);
         res.status(500).json({ 
             error: 'Erreur lors de la génération de l\'histoire',
+            details: error.message
+        });
+    }
+});
+
+// Nouvel endpoint pour générer le PDF
+app.post('/generate-pdf', async (req, res) => {
+    try {
+        const { story } = req.body;
+        if (!story) {
+            throw new Error('Histoire manquante dans la requête');
+        }
+
+        console.log('Generating PDF...');
+        const doc = await generatePDF(story);
+
+        // Configurer les headers pour le téléchargement
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'attachment; filename=histoire-personnalisee.pdf');
+
+        // Streamer le PDF vers le client
+        doc.pipe(res);
+        doc.end();
+
+        console.log('PDF generated and sent successfully');
+    } catch (error) {
+        console.error('Error generating PDF:', error);
+        res.status(500).json({
+            error: 'Erreur lors de la génération du PDF',
             details: error.message
         });
     }
