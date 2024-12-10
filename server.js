@@ -39,15 +39,7 @@ async function generateStoryPartWithRetry(prompt, maxRetries = 3) {
                         role: 'user',
                         content: prompt
                     }],
-                    system: `Tu es un auteur talentueux et créatif spécialisé dans la rédaction de livres pour enfants. Tu écris des histoires interactives et immersives qui captivent les jeunes lecteurs, tout en les enrichissant sur le plan émotionnel et intellectuel. Voici tes objectifs pour chaque histoire :
-                    - Parle à la 3ème personne. 
-                    - Utilise toujours le prénom de l'enfant ${name} comme personnage principal et reste cohérent avec les informations fournies sur l'enfant. Fais en sorte que ${name} soit un héros courageux, curieux ou ingénieux, adapté à son univers.
-                    - Crée une intrigue unique et pleine de rebondissements. Évite les clichés et introduis des éléments surprenants ou magiques qui stimulent l'imagination.
-                    - Intègre des messages subtils ou des leçons importantes adaptées aux enfants, comme la persévérance, l'amitié, le courage ou l'empathie, sans être moralisateur.
-                    - Fais vivre une palette d'émotions à travers des défis excitants et des résolutions satisfaisantes. Les enfants doivent ressentir de l'enthousiasme, de la curiosité et une sensation d'accomplissement.
-                    - Utilise un langage simple mais riche, avec des descriptions colorées, des dialogues vivants et un rythme narratif entraînant. Assure-toi que le ton reste accessible et amusant pour les enfants.
-                    - Implique l'enfant${name} dans des choix ou des interactions imaginaires qui le/la font évoluer dans l'histoire et renforcent l'identification.
-                    - Écris une histoire captivante et immersive sans répéter ces consignes dans la sortie.`
+                    system: "Tu es un auteur talentueux et créatif spécialisé dans la rédaction de livres pour enfants. Tu écris des histoires interactives et immersives qui captivent les jeunes lecteurs, tout en les enrichissant sur le plan émotionnel et intellectuel. Voici tes objectifs pour chaque histoire : - Parle à la 3ème personne. - Utilise toujours le prénom de l'enfant comme personnage principal et reste cohérent avec les informations fournies sur l'enfant. Fais en sorte que ${name} soit un héros courageux, curieux ou ingénieux, adapté à son univers. - Crée une intrigue unique et pleine de rebondissements. Évite les clichés et introduis des éléments surprenants ou magiques qui stimulent l'imagination. - Intègre des messages subtils ou des leçons importantes adaptées aux enfants, comme la persévérance, l'amitié, le courage ou l'empathie, sans être moralisateur. - Fais vivre une palette d'émotions à travers des défis excitants et des résolutions satisfaisantes. Les enfants doivent ressentir de l'enthousiasme, de la curiosité et une sensation d'accomplissement. - Utilise un langage simple mais riche, avec des descriptions colorées, des dialogues vivants et un rythme narratif entraînant. Assure-toi que le ton reste accessible et amusant pour les enfants. - Implique l'enfant dans des choix ou des interactions imaginaires qui le/la font évoluer dans l'histoire et renforcent l'identification. - Écris une histoire captivante et immersive sans répéter ces consignes dans la sortie."
                 })
             });
 
@@ -92,17 +84,40 @@ function extractChoices(text, pattern) {
     }
 }
 
+function extractName(text) {
+    try {
+        // Recherche le motif "s'appelle X" ou "m'appelle X"
+        const nameMatch = text.match(/(?:s'appelle|m'appelle)\s+(\w+)/i);
+        if (nameMatch && nameMatch[1]) {
+            console.log('Nom extrait:', nameMatch[1]);
+            return nameMatch[1];
+        }
+        
+        // Si pas trouvé, cherche le premier mot après "Mon enfant" ou "Je"
+        const altMatch = text.match(/(?:Mon enfant|Je)\s+(\w+)/i);
+        if (altMatch && altMatch[1]) {
+            console.log('Nom alternatif extrait:', altMatch[1]);
+            return altMatch[1];
+        }
+
+        console.log('Aucun nom trouvé, utilisation de valeur par défaut');
+        return 'l\'enfant';
+    } catch (error) {
+        console.error('Erreur lors de l\'extraction du nom:', error);
+        return 'l\'enfant';
+    }
+}
+
 async function generateCompleteStory(mainInfo, style) {
     try {
-        // Extraire le nom
-        const nameMatch = mainInfo.match(/(\w+)/);
-        const childName = nameMatch ? nameMatch[1] : 'l\'enfant';
-        console.log('Extracted name:', childName);
+        // Extraire le nom avec la nouvelle fonction
+        const name = extractName(mainInfo);
+        console.log('Nom extrait pour l\'histoire:', name);
 
         // Générer l'introduction
         console.log('Generating introduction...');
-        const introPrompt = `Écris une introduction longue (15) phrases) pour une histoire ${style} avec ces informations : ${mainInfo}
-        L'histoire doit parler de ${childName} et ses activités.`;
+        const introPrompt = `Écris une introduction longue (15 phrases) pour une histoire ${style} avec ces informations : ${mainInfo}
+        L'histoire doit parler de ${name} et ses activités.`;
 
         const intro = await generateStoryPartWithRetry(introPrompt);
         console.log('Introduction generated successfully');
@@ -110,7 +125,7 @@ async function generateCompleteStory(mainInfo, style) {
 
         // Générer la première page
         console.log('Generating page 1...');
-        const page1Prompt = `Voici le début d'une histoire pour ${childName} :
+        const page1Prompt = `Voici le début d'une histoire pour ${name} :
         "${intro}"
         
         Continue l'histoire (20-30 phrases) puis propose deux choix exactement comme ceci :
@@ -129,7 +144,7 @@ async function generateCompleteStory(mainInfo, style) {
 
         // Générer les suites
         console.log('Generating page 2A...');
-        const page2APrompt = `${childName} choisit : ${choiceA}
+        const page2APrompt = `${name} choisit : ${choiceA}
         
         Continue l'histoire (20-30 phrases) puis propose deux choix exactement comme ceci :
         
@@ -142,7 +157,7 @@ async function generateCompleteStory(mainInfo, style) {
         await sleep(1000);
 
         console.log('Generating page 2B...');
-        const page2BPrompt = `${childName} choisit : ${choiceB}
+        const page2BPrompt = `${name} choisit : ${choiceB}
         
         Continue l'histoire (20-30 phrases) puis propose deux choix exactement comme ceci :
         
@@ -161,19 +176,19 @@ async function generateCompleteStory(mainInfo, style) {
         // Générer les fins
         console.log('Generating endings...');
         const endingPrompts = [
-            `${childName} choisit : ${choiceA1}
+            `${name} choisit : ${choiceA1}
             Écris une fin positive en 20-30 phrases.
             Termine par "FIN"`,
 
-            `${childName} choisit : ${choiceA2}
+            `${name} choisit : ${choiceA2}
             Écris une fin positive en 20-30 phrases.
             Termine par "FIN"`,
 
-            `${childName} choisit : ${choiceB1}
+            `${name} choisit : ${choiceB1}
             Écris une fin positive en 20-30 phrases.
             Termine par "FIN"`,
 
-            `${childName} choisit : ${choiceB2}
+            `${name} choisit : ${choiceB2}
             Écris une fin positive en 20-30 phrases.
             Termine par "FIN"`
         ];
