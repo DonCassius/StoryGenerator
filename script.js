@@ -3,7 +3,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const subheadline = document.getElementById('subheadline');
     const userInput = document.getElementById('userInput');
     const generateBtn = document.getElementById('generateBtn');
-    const storyOutput = document.getElementById('storyOutput');
     const progressContainer = document.querySelector('.progress-container');
     const progressBar = document.querySelector('.progress');
     const progressText = document.querySelector('.progress-text');
@@ -63,7 +62,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // Démarrer l'animation de génération
         generateBtn.disabled = true;
         progressContainer.style.display = 'block';
-        storyOutput.classList.remove('visible');
 
         let progress = 0;
         const progressInterval = setInterval(() => {
@@ -96,24 +94,20 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const data = await response.json();
-            console.log('Réponse reçue:', data);
+            console.log('Histoire générée:', data);
             
+            // Sauvegarder l'histoire dans le localStorage
+            localStorage.setItem('generatedStory', JSON.stringify(data));
+            localStorage.setItem('currentSection', '1');
+
             // Compléter la progression
             progress = 100;
             progressBar.style.width = '100%';
             progressText.textContent = '100%';
             
-            // Afficher l'histoire
+            // Rediriger vers la page de l'histoire
             setTimeout(() => {
-                storyOutput.innerHTML = data.story;
-                storyOutput.classList.add('visible');
-                
-                // Réinitialiser l'interface
-                clearInterval(progressInterval);
-                progressContainer.style.display = 'none';
-                generateBtn.disabled = false;
-                progressBar.style.width = '0%';
-                progressText.textContent = '0%';
+                window.location.href = 'story.html';
             }, 500);
 
         } catch (error) {

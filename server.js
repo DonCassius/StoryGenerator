@@ -18,9 +18,8 @@ app.use(express.static(__dirname));
 const HUGGINGFACE_API_TOKEN = process.env.HUGGINGFACE_API_TOKEN;
 const MODEL_URL = "https://api-inference.huggingface.co/models/bigscience/bloom";
 
-async function generateStoryPart(prompt, isChoice = false) {
+async function generateStorySection(prompt) {
     try {
-        console.log('Generating story part...');
         const response = await fetch(MODEL_URL, {
             method: "POST",
             headers: {
@@ -30,7 +29,7 @@ async function generateStoryPart(prompt, isChoice = false) {
             body: JSON.stringify({
                 inputs: prompt,
                 parameters: {
-                    max_length: isChoice ? 200 : 1000,
+                    max_length: 1000,
                     temperature: 0.8,
                     top_p: 0.9,
                     do_sample: true,
@@ -47,66 +46,86 @@ async function generateStoryPart(prompt, isChoice = false) {
         const result = await response.json();
         return result[0].generated_text.trim();
     } catch (error) {
-        console.error('Error in generateStoryPart:', error);
+        console.error('Error in generateStorySection:', error);
         throw error;
     }
 }
 
-async function generateFullStory(mainInfo) {
-    // Générer l'introduction
-    const introPrompt = `Écris une introduction captivante pour une histoire interactive pour enfant.
-    Informations sur l'enfant: ${mainInfo}
-    L'histoire doit être en français, positive et adaptée aux enfants.
-    Écris environ 500 mots pour planter le décor et présenter la situation initiale.
-    Ne propose pas encore de choix.`;
+async function generateFullStory(mainInfo, style) {
+    try {
+        // Générer l'introduction (Section 1)
+        const introPrompt = `Écris le début d'une histoire interactive pour enfant (environ 500 mots).
+        Informations sur l'enfant: ${mainInfo}
+        Style: ${style}
+        L'histoire doit être en français, positive et adaptée aux enfants.
+        À la fin, propose 2 ou 3 choix pour continuer l'histoire.`;
 
-    const intro = await generateStoryPart(introPrompt);
+        const intro = await generateStorySection(introPrompt);
 
-    // Générer les premiers choix
-    const choicesPrompt = `En te basant sur cette introduction:
-    "${intro}"
-    Propose 3 choix différents pour la suite de l'histoire.
-    Chaque choix doit être une phrase courte et intrigante.
-    Format: 
-    1) Premier choix
-    2) Deuxième choix
-    3) Troisième choix`;
+        // Générer les choix pour l'introduction
+        const choicesPrompt = `Pour cette introduction:
+        "${intro}"
+        Propose 2 ou 3 choix différents pour la suite de l'histoire.
+        Format:
+        1) Premier choix
+        2) Deuxième choix
+        3) Troisième choix (optionnel)`;
 
-    const choices = await generateStoryPart(choicesPrompt, true);
+        const choicesText = await generateStorySection(choicesPrompt);
+        const choices = choicesText.split('\n')
+            .filter(line => line.match(/^\d\)/))
+            .map((choice, index) => ({
+                text: choice.replace(/^\d\)\s*/, ''),
+                goto: String(index + 2)
+            }));
 
-    return {
-        currentPart: intro,
-        choices: choices.split('\n').filter(choice => choice.trim().match(/^\d\)/)),
-        history: [intro]
-    };
-}
+        // Générer les sections suivantes
+        const sections = {
+            '1': {
+                text: intro,
+                choices: choices
+            }
+        };
 
-async function generateNextPart(previousPart, choiceMade) {
-    const prompt = `Continue cette partie de l'histoire:
-    "${previousPart}"
-    
-    L'enfant a choisi: "${choiceMade}"
-    
-    Génère la suite de l'histoire (environ 500 mots) puis propose 3 nouveaux choix.
-    L'histoire doit rester cohérente et adaptée aux enfants.
-    Termine par:
-    
-    Que décides-tu ?
-    1) Premier choix
-    2) Deuxième choix
-    3) Troisième choix`;
+        // Générer 2-3 sections pour chaque choix
+        for (const choice of choices) {
+            const sectionPrompt = `Continue l'histoire en suivant ce choix: "${choice.text}"
+            L'enfant: ${mainInfo}
+            Style: ${style}
+            Écris environ 500 mots et propose 2 nouveaux choix à la fin.`;
 
-    const nextPart = await generateStoryPart(prompt);
-    const parts = nextPart.split('Que décides-tu ?');
-    
-    return {
-        story: parts[0].trim(),
-        choices: parts[1] ? parts[1].split('\n').filter(choice => choice.trim().match(/^\d\)/)) : []
-    };
+            const sectionText = await generateStorySection(sectionPrompt);
+            const sectionChoicesPrompt = `Pour cette partie de l'histoire:
+            "${sectionText}"
+            Propose 2 choix différents pour la suite.`;
+
+            const sectionChoicesText = await generateStorySection(sectionChoicesPrompt);
+            const sectionChoices = sectionChoicesText.split('\n')
+                .filter(line => line.match(/^\d\)/))
+                .map((choiceText, index) => ({
+                    text: choiceText.replace(/^\d\)\s*/, ''),
+                    goto: String(parseInt(choice.goto) * 10 + index + 1)
+                }));
+
+            sections[choice.goto] = {
+                text: sectionText,
+                choices: sectionChoices
+            };
+        }
+
+        return sections;
+    } catch (error) {
+        console.error('Error generating story:', error);
+        throw error;
+    }
 }
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.get('/story', (req, res) => {
+    res.sendFile(path.join(__dirname, 'story.html'));
 });
 
 app.post('/generate-story', async (req, res) => {
@@ -117,31 +136,19 @@ app.post('/generate-story', async (req, res) => {
             throw new Error('Données manquantes dans la requête');
         }
 
-        const story = await generateFullStory(mainText);
-        res.json(story);
+        const sections = await generateFullStory(mainText, style);
+        
+        const storyData = {
+            title: headline,
+            subtitle: subheadline,
+            sections: sections
+        };
+
+        res.json(storyData);
     } catch (error) {
         console.error('Error in generate-story endpoint:', error);
         res.status(500).json({ 
             error: 'Erreur lors de la génération de l\'histoire',
-            details: error.message
-        });
-    }
-});
-
-app.post('/continue-story', async (req, res) => {
-    try {
-        const { previousPart, choiceMade } = req.body;
-
-        if (!previousPart || !choiceMade) {
-            throw new Error('Données manquantes pour continuer l\'histoire');
-        }
-
-        const nextPart = await generateNextPart(previousPart, choiceMade);
-        res.json(nextPart);
-    } catch (error) {
-        console.error('Error in continue-story endpoint:', error);
-        res.status(500).json({ 
-            error: 'Erreur lors de la génération de la suite de l\'histoire',
             details: error.message
         });
     }

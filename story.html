@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Votre Histoire Interactive</title>
+    <link rel="stylesheet" href="story-style.css">
+</head>
+<body>
+    <div class="story-container">
+        <div class="story-header">
+            <h1 id="story-title"></h1>
+            <p id="story-subtitle"></p>
+        </div>
+        
+        <div class="story-content">
+            <div id="current-section" class="story-section">
+                <!-- Le contenu de la section actuelle sera inséré ici -->
+            </div>
+
+            <div id="choices" class="choices-container">
+                <!-- Les choix seront insérés ici -->
+            </div>
+        </div>
+
+        <div class="story-navigation">
+            <button id="restart-btn" class="nav-button">Recommencer l'histoire</button>
+            <button id="back-btn" class="nav-button">Retour à l'accueil</button>
+        </div>
+    </div>
+    <script src="story-script.js"></script>
+</body>
+</html>
