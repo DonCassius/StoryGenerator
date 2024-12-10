@@ -1,12 +1,20 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const fetch = require('node-fetch');
 
 const app = express();
+
+// Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static('.'));
+app.use(express.static(__dirname));
+
+// Route pour servir l'application
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
 
 // Configuration Replicate
 const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
@@ -36,8 +44,6 @@ async function generateWithReplicate(prompt) {
     }
 
     const prediction = await response.json();
-    
-    // Attendre que la prédiction soit terminée
     let result = await waitForResult(prediction.id);
     return result.output;
 }
@@ -95,7 +101,10 @@ app.post('/generate-story', async (req, res) => {
     }
 });
 
+// Log pour le démarrage du serveur
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Serveur démarré sur le port ${PORT}`);
+    console.log(`Environnement: ${process.env.NODE_ENV}`);
+    console.log(`Token Replicate configuré: ${REPLICATE_API_TOKEN ? 'Oui' : 'Non'}`);
 });
