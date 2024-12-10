@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     // Configuration de l'API - URL exacte de votre service Render
-    const API_URL = 'https://storygenerator-syqp.onrender.com';  // URL fixe du service
+    const API_URL = 'https://storygenerator-xg21.onrender.com';  // Nouvelle URL
 
     const headline = document.getElementById('headline');
     const subheadline = document.getElementById('subheadline');
@@ -83,7 +83,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'Origin': window.location.origin
                 },
                 body: JSON.stringify({
                     headline: headlineText,

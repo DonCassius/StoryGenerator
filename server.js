@@ -6,11 +6,12 @@ const fetch = require('node-fetch');
 
 const app = express();
 
-// Configuration CORS plus permissive pour le développement
+// Configuration CORS spécifique
 app.use(cors({
-    origin: '*', // Permet toutes les origines
-    methods: ['GET', 'POST'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    origin: 'https://storygenerator-xg21.onrender.com',
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Accept', 'Origin'],
+    credentials: true
 }));
 
 app.use(express.json());
@@ -82,6 +83,12 @@ async function waitForResult(predictionId) {
         await new Promise(resolve => setTimeout(resolve, 1000));
     }
 }
+
+// Middleware pour logger les requêtes
+app.use((req, res, next) => {
+    console.log(`${req.method} ${req.path}`, req.body);
+    next();
+});
 
 app.post('/generate-story', async (req, res) => {
     try {
