@@ -21,11 +21,11 @@ async function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function generateStoryPartWithRetry(systemPrompt, userPrompt, maxRetries = 3) {
+async function generateStoryPartWithRetry(prompt, maxRetries = 3) {
     for (let i = 0; i < maxRetries; i++) {
         try {
             console.log(`Attempt ${i + 1} of ${maxRetries}`);
-            const response = await fetch('https://api.anthropic.com/v1/complete', {
+            const response = await fetch('https://api.anthropic.com/v1/messages', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -34,10 +34,12 @@ async function generateStoryPartWithRetry(systemPrompt, userPrompt, maxRetries =
                 },
                 body: JSON.stringify({
                     model: 'claude-2.1',
-                    prompt: `\n\nHuman: ${userPrompt}\n\nAssistant:`,
-                    max_tokens_to_sample: 500,
-                    temperature: 0.7,
-                    stop_sequences: ["\n\nHuman:"]
+                    max_tokens: 1000,
+                    messages: [{
+                        role: 'user',
+                        content: prompt
+                    }],
+                    system: "Tu es un auteur professionnel de livres pour enfants qui crée des histoires interactives en français. Écris de manière claire, positive et adaptée aux enfants. Utilise le présent. Suis exactement le format demandé."
                 })
             });
 
@@ -49,17 +51,23 @@ async function generateStoryPartWithRetry(systemPrompt, userPrompt, maxRetries =
 
             if (!response.ok) {
                 const error = await response.text();
+                console.error('API Error Response:', error);
                 throw new Error(`Anthropic API error: ${response.status} - ${error}`);
             }
 
             const result = await response.json();
-            return result.completion.trim();
+            if (!result.content || !result.content[0] || !result.content[0].text) {
+                console.error('Unexpected API response format:', result);
+                throw new Error('Invalid API response format');
+            }
+            return result.content[0].text.trim();
         } catch (error) {
+            console.error(`Attempt ${i + 1} failed:`, error);
             if (i === maxRetries - 1) throw error;
-            console.log(`Attempt failed, retrying... Error: ${error.message}`);
             await sleep(2000 * (i + 1));
         }
     }
+    throw new Error('All retry attempts failed');
 }
 
 function extractChoices(text, pattern) {
@@ -68,6 +76,7 @@ function extractChoices(text, pattern) {
         if (match && match.length >= 3) {
             return [match[1].trim(), match[2].trim()];
         }
+        console.log('No choices found in text:', text);
         return ['continuer l\'aventure', 'prendre une autre direction'];
     } catch (error) {
         console.error('Error extracting choices:', error);
@@ -77,93 +86,64 @@ function extractChoices(text, pattern) {
 
 async function generateCompleteStory(mainInfo, style) {
     try {
-        // Extraire le nom et les activités
+        // Extraire le nom
         const nameMatch = mainInfo.match(/(\w+)/);
         const name = nameMatch ? nameMatch[1] : 'l\'enfant';
-
-        const systemPrompt = `Tu es un auteur de livres pour enfants qui crée des histoires interactives en français.
-        - Utilise toujours le prénom ${name} comme personnage principal
-        - Reste cohérent avec les informations fournies sur l'enfant
-        - Adapte le style et le ton pour les enfants
-        - Ne répète pas les instructions dans la sortie
-        - Écris directement l'histoire sans métacommentaires
-        - IMPORTANT : Écris toute l'histoire au PRÉSENT`;
+        console.log('Extracted name:', name);
 
         // Générer l'introduction
-        const introPrompt = `${systemPrompt}
+        console.log('Generating introduction...');
+        const introPrompt = `Écris une introduction courte (3 phrases) pour une histoire ${style} avec ces informations : ${mainInfo}
+        L'histoire doit parler de ${name} et ses activités.`;
 
-        Écris une introduction courte (3 phrases maximum) pour une histoire ${style}.
-        Informations sur l'enfant : ${mainInfo}
-        L'histoire doit parler de ${name} et inclure ses activités préférées.
-        Rappel : utilise le PRÉSENT.`;
-
-        const intro = await generateStoryPartWithRetry(systemPrompt, introPrompt);
-        if (!intro) throw new Error('Failed to generate introduction');
+        const intro = await generateStoryPartWithRetry(introPrompt);
+        console.log('Introduction generated successfully');
         await sleep(1000);
 
         // Générer la première page
-        const page1Prompt = `${systemPrompt}
-
-        Histoire commencée :
+        console.log('Generating page 1...');
+        const page1Prompt = `Voici le début d'une histoire pour ${name} :
         "${intro}"
         
-        Décris la première situation (2-3 phrases) impliquant ${name} puis propose deux choix.
-        Termine exactement comme ceci :
+        Continue l'histoire (2-3 phrases) puis propose deux choix exactement comme ceci :
         
         Que décides-tu ?
-        Option A : [premier choix pour ${name}]
-        Option B : [deuxième choix pour ${name}]
+        Option A : [choix 1]
+        Option B : [choix 2]`;
 
-        Rappel : utilise le PRÉSENT.`;
-
-        const page1 = await generateStoryPartWithRetry(systemPrompt, page1Prompt);
-        if (!page1) throw new Error('Failed to generate page 1');
+        const page1 = await generateStoryPartWithRetry(page1Prompt);
+        console.log('Page 1 generated successfully');
         await sleep(1000);
 
-        // Extraire les choix de la page 1
+        // Extraire les choix
         const [choiceA, choiceB] = extractChoices(page1, /Option A : (.*)\nOption B : (.*)/s);
+        console.log('Extracted choices:', { choiceA, choiceB });
 
         // Générer les suites
-        const page2APrompt = `${systemPrompt}
-
-        Histoire jusqu'ici :
-        ${intro}
-        ${page1}
-
-        ${name} a choisi : ${choiceA}
+        console.log('Generating page 2A...');
+        const page2APrompt = `${name} choisit : ${choiceA}
         
-        Continue l'histoire (2-3 phrases) puis propose deux nouveaux choix.
-        Termine exactement comme ceci :
+        Continue l'histoire (2-3 phrases) puis propose deux choix exactement comme ceci :
         
         Que fais-tu ?
-        Option A1 : [premier choix pour ${name}]
-        Option A2 : [deuxième choix pour ${name}]
+        Option A1 : [choix 1]
+        Option A2 : [choix 2]`;
 
-        Rappel : utilise le PRÉSENT.`;
-
-        const page2A = await generateStoryPartWithRetry(systemPrompt, page2APrompt);
-        if (!page2A) throw new Error('Failed to generate page 2A');
+        const page2A = await generateStoryPartWithRetry(page2APrompt);
+        console.log('Page 2A generated successfully');
         await sleep(1000);
 
-        const page2BPrompt = `${systemPrompt}
-
-        Histoire jusqu'ici :
-        ${intro}
-        ${page1}
-
-        ${name} a choisi : ${choiceB}
+        console.log('Generating page 2B...');
+        const page2BPrompt = `${name} choisit : ${choiceB}
         
-        Continue l'histoire (2-3 phrases) puis propose deux nouveaux choix.
-        Termine exactement comme ceci :
+        Continue l'histoire (2-3 phrases) puis propose deux choix exactement comme ceci :
         
         Que fais-tu ?
-        Option B1 : [premier choix pour ${name}]
-        Option B2 : [deuxième choix pour ${name}]
+        Option B1 : [choix 1]
+        Option B2 : [choix 2]`;
 
-        Rappel : utilise le PRÉSENT.`;
-
-        const page2B = await generateStoryPartWithRetry(systemPrompt, page2BPrompt);
-        if (!page2B) throw new Error('Failed to generate page 2B');
+        const page2B = await generateStoryPartWithRetry(page2BPrompt);
+        console.log('Page 2B generated successfully');
         await sleep(1000);
 
         // Extraire les choix finaux
@@ -171,67 +151,32 @@ async function generateCompleteStory(mainInfo, style) {
         const [choiceB1, choiceB2] = extractChoices(page2B, /Option B1 : (.*)\nOption B2 : (.*)/s);
 
         // Générer les fins
+        console.log('Generating endings...');
         const endingPrompts = [
-            `${systemPrompt}
+            `${name} choisit : ${choiceA1}
+            Écris une fin positive en 2-3 phrases.
+            Termine par "FIN"`,
 
-            Histoire jusqu'ici :
-            ${intro}
-            ${page1}
-            ${page2A}
+            `${name} choisit : ${choiceA2}
+            Écris une fin positive en 2-3 phrases.
+            Termine par "FIN"`,
 
-            ${name} a choisi : ${choiceA1}
-            Écris une fin positive (2-3 phrases) qui conclut bien l'histoire.
-            Termine par "FIN"
+            `${name} choisit : ${choiceB1}
+            Écris une fin positive en 2-3 phrases.
+            Termine par "FIN"`,
 
-            Rappel : utilise le PRÉSENT.`,
-
-            `${systemPrompt}
-
-            Histoire jusqu'ici :
-            ${intro}
-            ${page1}
-            ${page2A}
-
-            ${name} a choisi : ${choiceA2}
-            Écris une fin positive (2-3 phrases) qui conclut bien l'histoire.
-            Termine par "FIN"
-
-            Rappel : utilise le PRÉSENT.`,
-
-            `${systemPrompt}
-
-            Histoire jusqu'ici :
-            ${intro}
-            ${page1}
-            ${page2B}
-
-            ${name} a choisi : ${choiceB1}
-            Écris une fin positive (2-3 phrases) qui conclut bien l'histoire.
-            Termine par "FIN"
-
-            Rappel : utilise le PRÉSENT.`,
-
-            `${systemPrompt}
-
-            Histoire jusqu'ici :
-            ${intro}
-            ${page1}
-            ${page2B}
-
-            ${name} a choisi : ${choiceB2}
-            Écris une fin positive (2-3 phrases) qui conclut bien l'histoire.
-            Termine par "FIN"
-
-            Rappel : utilise le PRÉSENT.`
+            `${name} choisit : ${choiceB2}
+            Écris une fin positive en 2-3 phrases.
+            Termine par "FIN"`
         ];
 
         const endings = [];
         for (const prompt of endingPrompts) {
-            const ending = await generateStoryPartWithRetry(systemPrompt, prompt);
-            if (!ending) throw new Error('Failed to generate ending');
+            const ending = await generateStoryPartWithRetry(prompt);
             endings.push(ending);
             await sleep(1000);
         }
+        console.log('All endings generated successfully');
 
         // Assembler l'histoire
         return `Introduction\n${intro}\n\nPage 1\n${page1}\n\nPage 2A\n${page2A}\n\nPage 2B\n${page2B}\n\nPage 3A1\n${endings[0]}\n\nPage 3A2\n${endings[1]}\n\nPage 3B1\n${endings[2]}\n\nPage 3B2\n${endings[3]}`;
