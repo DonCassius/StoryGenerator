@@ -18,7 +18,7 @@ app.use(express.static(__dirname));
 const HUGGINGFACE_API_TOKEN = process.env.HUGGINGFACE_API_TOKEN;
 const MODEL_URL = "https://api-inference.huggingface.co/models/bigscience/bloom";
 
-async function generateStorySection(prompt) {
+async function generateStoryPart(prompt) {
     try {
         const response = await fetch(MODEL_URL, {
             method: "POST",
@@ -29,7 +29,7 @@ async function generateStorySection(prompt) {
             body: JSON.stringify({
                 inputs: prompt,
                 parameters: {
-                    max_length: 1000,
+                    max_length: 2000,
                     temperature: 0.8,
                     top_p: 0.9,
                     do_sample: true,
@@ -46,86 +46,99 @@ async function generateStorySection(prompt) {
         const result = await response.json();
         return result[0].generated_text.trim();
     } catch (error) {
-        console.error('Error in generateStorySection:', error);
+        console.error('Error in generateStoryPart:', error);
         throw error;
     }
 }
 
-async function generateFullStory(mainInfo, style) {
-    try {
-        // Générer l'introduction (Section 1)
-        const introPrompt = `Écris le début d'une histoire interactive pour enfant (environ 500 mots).
-        Informations sur l'enfant: ${mainInfo}
+async function generateCompleteStory(mainInfo, style) {
+    // Générer l'introduction (Page 1)
+    const introPrompt = `Écris le début d'une histoire pour enfant de type "livre dont vous êtes le héros" (environ 500 mots).
+    Informations sur l'enfant: ${mainInfo}
+    Style: ${style}
+    
+    Instructions:
+    - L'histoire doit être en français
+    - Elle doit être adaptée aux enfants
+    - À la fin du texte, propose 2 choix
+    - Pour chaque choix, indique "Si vous choisissez [choix], allez à la page X"
+    - Numérote les pages à partir de 1
+    
+    Format:
+    Page 1
+    [Texte de l'histoire...]
+    
+    Que décides-tu ?
+    - Si tu choisis [option 1], va à la page 2
+    - Si tu choisis [option 2], va à la page 3`;
+
+    const intro = await generateStoryPart(introPrompt);
+
+    // Générer les pages suivantes
+    const page2Prompt = `Continue l'histoire pour la page 2 (environ 500 mots).
+    Contexte: ${mainInfo}
+    Style: ${style}
+    
+    Instructions:
+    - Continue l'histoire de manière cohérente
+    - À la fin, propose 2 nouveaux choix
+    - Pour chaque choix, indique la page à laquelle aller
+    
+    Format:
+    Page 2
+    [Texte de l'histoire...]
+    
+    Que décides-tu ?
+    - Si tu choisis [option 1], va à la page 4
+    - Si tu choisis [option 2], va à la page 5`;
+
+    const page2 = await generateStoryPart(page2Prompt);
+
+    const page3Prompt = `Continue l'histoire pour la page 3 (environ 500 mots).
+    Contexte: ${mainInfo}
+    Style: ${style}
+    
+    Instructions:
+    - Continue l'histoire de manière cohérente
+    - À la fin, propose 2 nouveaux choix
+    - Pour chaque choix, indique la page à laquelle aller
+    
+    Format:
+    Page 3
+    [Texte de l'histoire...]
+    
+    Que décides-tu ?
+    - Si tu choisis [option 1], va à la page 6
+    - Si tu choisis [option 2], va à la page 7`;
+
+    const page3 = await generateStoryPart(page3Prompt);
+
+    // Générer les fins possibles
+    const endings = await Promise.all([4, 5, 6, 7].map(async pageNum => {
+        const endingPrompt = `Écris la fin de l'histoire pour la page ${pageNum} (environ 500 mots).
+        Contexte: ${mainInfo}
         Style: ${style}
-        L'histoire doit être en français, positive et adaptée aux enfants.
-        À la fin, propose 2 ou 3 choix pour continuer l'histoire.`;
-
-        const intro = await generateStorySection(introPrompt);
-
-        // Générer les choix pour l'introduction
-        const choicesPrompt = `Pour cette introduction:
-        "${intro}"
-        Propose 2 ou 3 choix différents pour la suite de l'histoire.
+        
+        Instructions:
+        - Termine l'histoire de manière satisfaisante
+        - Pas de choix à la fin, c'est une conclusion
+        
         Format:
-        1) Premier choix
-        2) Deuxième choix
-        3) Troisième choix (optionnel)`;
+        Page ${pageNum}
+        [Texte de la fin de l'histoire...]
+        
+        FIN`;
 
-        const choicesText = await generateStorySection(choicesPrompt);
-        const choices = choicesText.split('\n')
-            .filter(line => line.match(/^\d\)/))
-            .map((choice, index) => ({
-                text: choice.replace(/^\d\)\s*/, ''),
-                goto: String(index + 2)
-            }));
+        return generateStoryPart(endingPrompt);
+    }));
 
-        // Générer les sections suivantes
-        const sections = {
-            '1': {
-                text: intro,
-                choices: choices
-            }
-        };
-
-        // Générer 2-3 sections pour chaque choix
-        for (const choice of choices) {
-            const sectionPrompt = `Continue l'histoire en suivant ce choix: "${choice.text}"
-            L'enfant: ${mainInfo}
-            Style: ${style}
-            Écris environ 500 mots et propose 2 nouveaux choix à la fin.`;
-
-            const sectionText = await generateStorySection(sectionPrompt);
-            const sectionChoicesPrompt = `Pour cette partie de l'histoire:
-            "${sectionText}"
-            Propose 2 choix différents pour la suite.`;
-
-            const sectionChoicesText = await generateStorySection(sectionChoicesPrompt);
-            const sectionChoices = sectionChoicesText.split('\n')
-                .filter(line => line.match(/^\d\)/))
-                .map((choiceText, index) => ({
-                    text: choiceText.replace(/^\d\)\s*/, ''),
-                    goto: String(parseInt(choice.goto) * 10 + index + 1)
-                }));
-
-            sections[choice.goto] = {
-                text: sectionText,
-                choices: sectionChoices
-            };
-        }
-
-        return sections;
-    } catch (error) {
-        console.error('Error generating story:', error);
-        throw error;
-    }
+    // Assembler toute l'histoire
+    const completeStory = `${intro}\n\n${page2}\n\n${page3}\n\n${endings.join('\n\n')}`;
+    return completeStory;
 }
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-app.get('/story', (req, res) => {
-    res.sendFile(path.join(__dirname, 'story.html'));
 });
 
 app.post('/generate-story', async (req, res) => {
@@ -136,15 +149,8 @@ app.post('/generate-story', async (req, res) => {
             throw new Error('Données manquantes dans la requête');
         }
 
-        const sections = await generateFullStory(mainText, style);
-        
-        const storyData = {
-            title: headline,
-            subtitle: subheadline,
-            sections: sections
-        };
-
-        res.json(storyData);
+        const story = await generateCompleteStory(mainText, style);
+        res.json({ story: story });
     } catch (error) {
         console.error('Error in generate-story endpoint:', error);
         res.status(500).json({ 

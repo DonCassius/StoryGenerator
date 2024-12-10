@@ -196,6 +196,36 @@ button:disabled {
     display: block;
 }
 
+.story-page {
+    margin-bottom: 40px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid rgba(255, 215, 0, 0.2);
+}
+
+.story-page:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.page-number {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 20px;
+    text-align: center;
+    color: var(--golden-text);
+    text-shadow: var(--glow-effect);
+}
+
+.page-content {
+    font-size: 16px;
+    line-height: 1.8;
+    white-space: pre-line;
+}
+
+.page-content br {
+    margin-bottom: 10px;
+}
+
 .faq-section {
     width: 100%;
     max-width: 800px;

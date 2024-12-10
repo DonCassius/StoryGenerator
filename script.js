@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const subheadline = document.getElementById('subheadline');
     const userInput = document.getElementById('userInput');
     const generateBtn = document.getElementById('generateBtn');
+    const storyOutput = document.getElementById('storyOutput');
     const progressContainer = document.querySelector('.progress-container');
     const progressBar = document.querySelector('.progress');
     const progressText = document.querySelector('.progress-text');
@@ -43,6 +44,25 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Formater l'histoire pour l'affichage
+    function formatStory(story) {
+        // Diviser l'histoire en pages
+        const pages = story.split(/Page \d+/).filter(page => page.trim());
+        
+        // Formater chaque page
+        return pages.map((page, index) => {
+            const pageNum = index + 1;
+            return `
+                <div class="story-page">
+                    <h2 class="page-number">Page ${pageNum}</h2>
+                    <div class="page-content">
+                        ${page.trim().replace(/\n/g, '<br>')}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
     generateBtn.addEventListener('click', async () => {
         const headlineText = headline.value.trim();
         const subheadlineText = subheadline.value.trim();
@@ -62,6 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Démarrer l'animation de génération
         generateBtn.disabled = true;
         progressContainer.style.display = 'block';
+        storyOutput.classList.remove('visible');
 
         let progress = 0;
         const progressInterval = setInterval(() => {
@@ -94,20 +115,23 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const data = await response.json();
-            console.log('Histoire générée:', data);
             
-            // Sauvegarder l'histoire dans le localStorage
-            localStorage.setItem('generatedStory', JSON.stringify(data));
-            localStorage.setItem('currentSection', '1');
-
             // Compléter la progression
             progress = 100;
             progressBar.style.width = '100%';
             progressText.textContent = '100%';
             
-            // Rediriger vers la page de l'histoire
+            // Afficher l'histoire formatée
             setTimeout(() => {
-                window.location.href = 'story.html';
+                storyOutput.innerHTML = formatStory(data.story);
+                storyOutput.classList.add('visible');
+                
+                // Réinitialiser l'interface
+                clearInterval(progressInterval);
+                progressContainer.style.display = 'none';
+                generateBtn.disabled = false;
+                progressBar.style.width = '0%';
+                progressText.textContent = '0%';
             }, 500);
 
         } catch (error) {
