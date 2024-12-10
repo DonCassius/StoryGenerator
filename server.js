@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const fetch = require('node-fetch');
+const { OpenAI } = require('openai');
 
 const app = express();
 
@@ -15,39 +15,31 @@ app.use(cors({
 app.use(express.json());
 app.use(express.static(__dirname));
 
-const HUGGINGFACE_API_TOKEN = process.env.HUGGINGFACE_API_TOKEN;
-// Utilisation de l'endpoint d'inférence
-const MODEL_URL = "https://api-inference.huggingface.co/pipeline/text-generation/bigscience/bloomz-1b7";
+// Configuration OpenAI
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+});
 
 async function generateStoryPart(prompt) {
     try {
         console.log('Generating story part...');
-        const response = await fetch(MODEL_URL, {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${HUGGINGFACE_API_TOKEN}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                inputs: prompt,
-                parameters: {
-                    max_new_tokens: 500,
-                    temperature: 0.9,
-                    top_p: 0.95,
-                    do_sample: true,
-                    return_full_text: false,
-                    stop: ["###"]
+        const completion = await openai.chat.completions.create({
+            model: "gpt-3.5-turbo",
+            messages: [
+                {
+                    role: "system",
+                    content: "Tu es un auteur de livres pour enfants spécialisé dans les histoires interactives de type 'livre dont vous êtes le héros'. Tu écris en français de manière claire et adaptée aux enfants."
+                },
+                {
+                    role: "user",
+                    content: prompt
                 }
-            })
+            ],
+            temperature: 0.9,
+            max_tokens: 500
         });
 
-        if (!response.ok) {
-            const error = await response.text();
-            throw new Error(`Hugging Face API error: ${response.status} - ${error}`);
-        }
-
-        const result = await response.json();
-        return result[0].generated_text.trim();
+        return completion.choices[0].message.content.trim();
     } catch (error) {
         console.error('Error in generateStoryPart:', error);
         throw error;
@@ -57,13 +49,15 @@ async function generateStoryPart(prompt) {
 async function generateCompleteStory(mainInfo, style) {
     try {
         // Générer l'introduction
-        const introPrompt = `Tu es un auteur de livres pour enfants. Écris une histoire interactive.
-
+        const introPrompt = `Écris une introduction pour une histoire interactive.
         Informations sur l'enfant : ${mainInfo}
         Style de l'histoire : ${style}
 
-        Écris une introduction qui présente le personnage (3-4 phrases maximum).
-        ###`;
+        L'introduction doit :
+        - Présenter le personnage principal
+        - Décrire le contexte
+        - Être courte (3-4 phrases)
+        - Être adaptée aux enfants`;
 
         const intro = await generateStoryPart(introPrompt);
 
@@ -71,57 +65,52 @@ async function generateCompleteStory(mainInfo, style) {
         const page1Prompt = `Continue cette histoire :
         "${intro}"
 
-        Décris la première situation et propose deux choix.
-        Termine par :
-        
-        Que décides-tu ?
-        - Option A : [choix 1]
-        - Option B : [choix 2]
-        ###`;
+        Pour la Page 1 :
+        - Décris la première situation
+        - Termine par "Que décides-tu ?"
+        - Propose deux choix clairs :
+          * Option A : [premier choix]
+          * Option B : [deuxième choix]`;
 
         const page1 = await generateStoryPart(page1Prompt);
 
         // Générer les suites
         const page2APrompt = `Voici la suite après le choix A.
-        Décris ce qui se passe et propose deux nouveaux choix.
-        Termine par :
-        
-        Que fais-tu ?
-        - Option A1 : [choix 1]
-        - Option A2 : [choix 2]
-        ###`;
+        - Décris ce qui se passe
+        - Termine par "Que fais-tu ?"
+        - Propose deux nouveaux choix :
+          * Option A1 : [premier choix]
+          * Option A2 : [deuxième choix]`;
 
         const page2A = await generateStoryPart(page2APrompt);
 
         const page2BPrompt = `Voici la suite après le choix B.
-        Décris ce qui se passe et propose deux nouveaux choix.
-        Termine par :
-        
-        Que fais-tu ?
-        - Option B1 : [choix 1]
-        - Option B2 : [choix 2]
-        ###`;
+        - Décris ce qui se passe
+        - Termine par "Que fais-tu ?"
+        - Propose deux nouveaux choix :
+          * Option B1 : [premier choix]
+          * Option B2 : [deuxième choix]`;
 
         const page2B = await generateStoryPart(page2BPrompt);
 
         // Générer les fins
         const endings = await Promise.all([
             generateStoryPart(`Écris la fin de l'histoire après le choix A1.
-            Une fin positive et satisfaisante.
-            Termine par "FIN"
-            ###`),
+            - Une fin positive et satisfaisante
+            - Environ 3-4 phrases
+            - Termine par "FIN"`),
             generateStoryPart(`Écris la fin de l'histoire après le choix A2.
-            Une fin positive et satisfaisante.
-            Termine par "FIN"
-            ###`),
+            - Une fin positive et satisfaisante
+            - Environ 3-4 phrases
+            - Termine par "FIN"`),
             generateStoryPart(`Écris la fin de l'histoire après le choix B1.
-            Une fin positive et satisfaisante.
-            Termine par "FIN"
-            ###`),
+            - Une fin positive et satisfaisante
+            - Environ 3-4 phrases
+            - Termine par "FIN"`),
             generateStoryPart(`Écris la fin de l'histoire après le choix B2.
-            Une fin positive et satisfaisante.
-            Termine par "FIN"
-            ###`)
+            - Une fin positive et satisfaisante
+            - Environ 3-4 phrases
+            - Termine par "FIN"`)
         ]);
 
         // Assembler l'histoire
@@ -161,5 +150,5 @@ const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
     console.log(`Serveur démarré sur le port ${PORT}`);
     console.log(`Environnement: ${process.env.NODE_ENV}`);
-    console.log(`Token Hugging Face configuré: ${HUGGINGFACE_API_TOKEN ? 'Oui' : 'Non'}`);
+    console.log(`OpenAI API Key configurée: ${process.env.OPENAI_API_KEY ? 'Oui' : 'Non'}`);
 });
