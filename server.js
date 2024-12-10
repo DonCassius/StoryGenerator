@@ -73,7 +73,6 @@ function extractChoices(text, pattern) {
         if (match && match.length >= 3) {
             return [match[1].trim(), match[2].trim()];
         }
-        // Si pas de correspondance, retourner des choix par défaut
         return ['continuer l\'aventure', 'prendre une autre direction'];
     } catch (error) {
         console.error('Error extracting choices:', error);
@@ -83,69 +82,69 @@ function extractChoices(text, pattern) {
 
 async function generateCompleteStory(mainInfo, style) {
     try {
+        // Extraire le nom et les activités
+        const nameMatch = mainInfo.match(/(\w+)/);
+        const name = nameMatch ? nameMatch[1] : 'l\'enfant';
+
         const systemPrompt = `Tu es un auteur de livres pour enfants qui crée des histoires interactives en français.
-        - Écris directement le contenu sans phrases d'introduction
-        - Reste cohérent avec l'histoire en cours
+        - Utilise toujours le prénom ${name} comme personnage principal
+        - Reste cohérent avec les informations fournies sur l'enfant
         - Adapte le style et le ton pour les enfants
-        - Ne répète pas les instructions dans la sortie`;
+        - Ne répète pas les instructions dans la sortie
+        - Écris directement l'histoire sans métacommentaires`;
 
         // Générer l'introduction
-        const introPrompt = `Écris l'introduction d'une histoire ${style} pour un enfant.
-        Informations : ${mainInfo}
-        Maximum 3 phrases.`;
+        const introPrompt = `Écris une introduction courte (3 phrases maximum) pour une histoire ${style}.
+        Informations sur l'enfant : ${mainInfo}
+        L'histoire doit parler de ${name} et inclure ses activités préférées.`;
 
         const intro = await generateStoryPartWithRetry(systemPrompt, introPrompt);
+        if (!intro) throw new Error('Failed to generate introduction');
         await sleep(1000);
 
         // Générer la première page
-        const page1Prompt = `Contexte : ${intro}
+        const page1Prompt = `Continue cette histoire :
+        "${intro}"
         
-        Continue l'histoire avec la première situation.
-        Termine par deux choix clairs.
-        Format exact :
-        [texte de la situation]
+        Décris la première situation (2-3 phrases) impliquant ${name} puis propose deux choix.
+        Termine exactement comme ceci :
         
         Que décides-tu ?
-        Option A : [choix 1]
-        Option B : [choix 2]`;
+        Option A : [premier choix pour ${name}]
+        Option B : [deuxième choix pour ${name}]`;
 
         const page1 = await generateStoryPartWithRetry(systemPrompt, page1Prompt);
+        if (!page1) throw new Error('Failed to generate page 1');
         await sleep(1000);
 
         // Extraire les choix de la page 1
         const [choiceA, choiceB] = extractChoices(page1, /Option A : (.*)\nOption B : (.*)/s);
 
         // Générer les suites
-        const page2APrompt = `Histoire jusqu'ici :
-        ${intro}
-        ${page1}
+        const page2APrompt = `${name} a choisi : ${choiceA}
         
-        Le personnage choisit : ${choiceA}
-        Continue l'histoire et propose deux nouveaux choix.
-        Format exact :
-        [texte de la suite]
+        Continue l'histoire (2-3 phrases) puis propose deux nouveaux choix.
+        Termine exactement comme ceci :
         
         Que fais-tu ?
-        Option A1 : [choix 1]
-        Option A2 : [choix 2]`;
+        Option A1 : [premier choix pour ${name}]
+        Option A2 : [deuxième choix pour ${name}]`;
 
         const page2A = await generateStoryPartWithRetry(systemPrompt, page2APrompt);
+        if (!page2A) throw new Error('Failed to generate page 2A');
         await sleep(1000);
 
-        const page2BPrompt = `Histoire jusqu'ici :
-        ${intro}
-        ${page1}
+        const page2BPrompt = `${name} a choisi : ${choiceB}
         
-        Le personnage choisit : ${choiceB}
-        Continue l'histoire et propose deux nouveaux choix.
-        Format exact :
-        [texte de la suite]
+        Continue l'histoire (2-3 phrases) puis propose deux nouveaux choix.
+        Termine exactement comme ceci :
         
         Que fais-tu ?
-        Option B1 : [choix 1]
-        Option B2 : [choix 2]`;
+        Option B1 : [premier choix pour ${name}]
+        Option B2 : [deuxième choix pour ${name}]`;
 
         const page2B = await generateStoryPartWithRetry(systemPrompt, page2BPrompt);
+        if (!page2B) throw new Error('Failed to generate page 2B');
         await sleep(1000);
 
         // Extraire les choix finaux
@@ -154,46 +153,27 @@ async function generateCompleteStory(mainInfo, style) {
 
         // Générer les fins
         const endingPrompts = [
-            `Histoire jusqu'ici :
-            ${intro}
-            ${page1}
-            ${page2A}
-            
-            Le personnage choisit : ${choiceA1}
-            Écris une fin positive en 2-3 phrases.
+            `${name} a choisi : ${choiceA1}
+            Écris une fin positive (2-3 phrases) qui conclut bien l'histoire.
             Termine par "FIN"`,
 
-            `Histoire jusqu'ici :
-            ${intro}
-            ${page1}
-            ${page2A}
-            
-            Le personnage choisit : ${choiceA2}
-            Écris une fin positive en 2-3 phrases.
+            `${name} a choisi : ${choiceA2}
+            Écris une fin positive (2-3 phrases) qui conclut bien l'histoire.
             Termine par "FIN"`,
 
-            `Histoire jusqu'ici :
-            ${intro}
-            ${page1}
-            ${page2B}
-            
-            Le personnage choisit : ${choiceB1}
-            Écris une fin positive en 2-3 phrases.
+            `${name} a choisi : ${choiceB1}
+            Écris une fin positive (2-3 phrases) qui conclut bien l'histoire.
             Termine par "FIN"`,
 
-            `Histoire jusqu'ici :
-            ${intro}
-            ${page1}
-            ${page2B}
-            
-            Le personnage choisit : ${choiceB2}
-            Écris une fin positive en 2-3 phrases.
+            `${name} a choisi : ${choiceB2}
+            Écris une fin positive (2-3 phrases) qui conclut bien l'histoire.
             Termine par "FIN"`
         ];
 
         const endings = [];
         for (const prompt of endingPrompts) {
             const ending = await generateStoryPartWithRetry(systemPrompt, prompt);
+            if (!ending) throw new Error('Failed to generate ending');
             endings.push(ending);
             await sleep(1000);
         }
