@@ -50,6 +50,7 @@ body {
     font-weight: bold;
     color: var(--golden-text);
     text-shadow: var(--glow-effect);
+    text-align: center;
 }
 
 #subheadline {
@@ -57,6 +58,7 @@ body {
     line-height: 1.2;
     color: var(--golden-text);
     opacity: 0.9;
+    text-align: center;
 }
 
 .instruction-text {
@@ -75,13 +77,11 @@ body {
     background: transparent;
     outline: none;
     color: var(--golden-text);
-    text-align: center;
-    resize: none;
-    overflow: hidden;
 }
 
-.transparent-input:focus {
-    background: rgba(255, 215, 0, 0.05);
+.static-text {
+    user-select: none;
+    pointer-events: none;
 }
 
 .input-container {
@@ -190,59 +190,17 @@ button:disabled {
     display: none;
     border: 1px solid rgba(255, 215, 0, 0.1);
     color: var(--golden-text);
+    white-space: pre-line;
 }
 
 .story-output.visible {
     display: block;
 }
 
-.story-page {
-    margin-bottom: 40px;
-    padding-bottom: 20px;
-    border-bottom: 1px solid rgba(255, 215, 0, 0.2);
-}
-
-.story-page:last-child {
-    border-bottom: none;
-    margin-bottom: 0;
-}
-
-.page-number {
-    font-size: 24px;
-    font-weight: bold;
-    margin-bottom: 20px;
-    text-align: center;
-    color: var(--golden-text);
-    text-shadow: var(--glow-effect);
-}
-
-.story-section {
-    font-size: 16px;
-    line-height: 1.8;
-    margin-bottom: 20px;
-    white-space: pre-line;
-}
-
-.story-choices {
-    margin: 20px 0;
-    padding: 20px;
-    background: rgba(255, 215, 0, 0.05);
-    border-radius: 10px;
-    border: 1px solid rgba(255, 215, 0, 0.2);
-}
-
-.story-choice {
-    margin: 10px 0;
-    padding: 10px;
-    font-weight: bold;
-    color: var(--golden-text);
-}
-
 .faq-section {
     width: 100%;
     max-width: 800px;
     margin-top: 40px;
-    padding: 20px;
 }
 
 .faq-section h2 {
@@ -299,9 +257,5 @@ button:disabled {
     .style-selection {
         flex-direction: column;
         align-items: flex-start;
-    }
-
-    .faq-section h2 {
-        font-size: 24px;
     }
 }

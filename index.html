@@ -3,54 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Générateur d'Histoire</title>
+    <title>Générateur d'Histoires Personnalisées</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <div class="headlines">
-            <textarea id="headline" class="transparent-input" rows="1">L'Aventure dont votre enfant est le héros !</div>
-            <textarea id="subheadline" class="transparent-input" rows="1">Créez une histoire interactive et personnalisée en moins d'1 minute.</div>
+            <div id="headline" class="transparent-input static-text">L'AVENTURE DONT VOTRE ENFANT EST LE HÉROS !</div>
+            <div id="subheadline" class="transparent-input static-text">Créez une histoire personnalisée et interactive en quelques clics</div>
         </div>
-        <div class="instruction-text">
-            Dites nous en quelques lignes quelques informations sur votre enfant pour générer une histoire à sa pointure
-        </div>
+
+        <p class="instruction-text">Dites nous en quelques lignes quelques informations sur votre enfant pour générer une histoire à sa pointure</p>
+
         <div class="input-container">
-            <textarea id="userInput" placeholder="Entrez les informations pour votre histoire personnalisée..."></textarea>
+            <textarea id="userInput" placeholder="Par exemple : Mon enfant s'appelle Yomi, il adore les histoires de dragons et joue souvent aux jeux vidéo..."></textarea>
+            
             <div class="style-selection">
                 Style : 
                 <label><input type="checkbox" name="style" value="fantastique"> Fantastique</label>
                 <label><input type="checkbox" name="style" value="science-fiction"> Science-Fiction</label>
                 <label><input type="checkbox" name="style" value="aventure"> Aventure</label>
             </div>
+
             <div class="progress-container" style="display: none;">
+                <div class="progress-text">0%</div>
                 <div class="progress-bar">
                     <div class="progress"></div>
                 </div>
-                <div class="progress-text">0%</div>
             </div>
+
             <button id="generateBtn">GÉNÉRER LE LIVRE</button>
         </div>
+
         <div id="storyOutput" class="story-output"></div>
 
         <div class="faq-section">
             <h2>FOIRE AUX QUESTIONS</h2>
+            
             <div class="faq-item">
                 <div class="faq-question">Comment fonctionne le générateur d'histoires ?</div>
                 <div class="faq-answer">Notre générateur utilise une IA avancée pour créer des histoires personnalisées basées sur les informations que vous fournissez sur votre enfant. Il adapte l'histoire au style choisi pour créer une expérience unique.</div>
             </div>
+
             <div class="faq-item">
                 <div class="faq-question">Les histoires sont-elles adaptées à tous les âges ?</div>
                 <div class="faq-answer">Oui, notre IA ajuste automatiquement le contenu et le langage en fonction de l'âge de votre enfant pour créer une histoire appropriée et engageante.</div>
             </div>
+
             <div class="faq-item">
                 <div class="faq-question">Puis-je générer plusieurs histoires différentes ?</div>
                 <div class="faq-answer">Absolument ! Vous pouvez générer autant d'histoires que vous le souhaitez avec les mêmes informations ou en les modifiant pour obtenir des variations.</div>
             </div>
+
             <div class="faq-item">
                 <div class="faq-question">Les histoires sont-elles sauvegardées ?</div>
                 <div class="faq-answer">Pour le moment, les histoires ne sont pas sauvegardées. Nous vous conseillons de copier et sauvegarder les histoires que vous souhaitez conserver.</div>
             </div>
+
             <div class="faq-item">
                 <div class="faq-question">Puis-je modifier l'histoire une fois générée ?</div>
                 <div class="faq-answer">L'histoire générée ne peut pas être modifiée directement, mais vous pouvez générer une nouvelle version en ajustant les informations fournies.</div>

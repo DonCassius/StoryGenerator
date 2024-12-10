@@ -1,6 +1,4 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const headline = document.getElementById('headline');
-    const subheadline = document.getElementById('subheadline');
     const userInput = document.getElementById('userInput');
     const generateBtn = document.getElementById('generateBtn');
     const storyOutput = document.getElementById('storyOutput');
@@ -9,18 +7,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressText = document.querySelector('.progress-text');
     const styleCheckboxes = document.querySelectorAll('input[name="style"]');
     const faqItems = document.querySelectorAll('.faq-item');
-
-    // Fonction pour ajuster automatiquement la hauteur des textareas
-    function autoResize(element) {
-        element.style.height = 'auto';
-        element.style.height = element.scrollHeight + 'px';
-    }
-
-    // Appliquer autoResize aux headlines
-    [headline, subheadline].forEach(element => {
-        autoResize(element);
-        element.addEventListener('input', () => autoResize(element));
-    });
 
     // Gérer la sélection unique des styles
     styleCheckboxes.forEach(checkbox => {
@@ -44,44 +30,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Formater l'histoire pour l'affichage
-    function formatStory(story) {
-        // Diviser l'histoire en sections
-        const sections = story.split(/\n\n+/);
-        
-        // Formater chaque section
-        return sections.map(section => {
-            // Détecter si c'est un titre de section
-            if (section.match(/^\d+[A-Z]?\d*\./)) {
-                return `<div class="story-page">
-                    <h2 class="page-number">${section}</h2>
-                </div>`;
-            }
-            // Détecter si c'est une section d'options
-            else if (section.toLowerCase().includes('option')) {
-                const options = section.split('\n').map(line => {
-                    if (line.trim().startsWith('Option')) {
-                        return `<div class="story-choice">${line.trim()}</div>`;
-                    }
-                    return line;
-                }).join('\n');
-                return `<div class="story-choices">${options}</div>`;
-            }
-            // Section normale de texte
-            else {
-                return `<div class="story-section">${section}</div>`;
-            }
-        }).join('\n');
-    }
-
     generateBtn.addEventListener('click', async () => {
-        const headlineText = headline.value.trim();
-        const subheadlineText = subheadline.value.trim();
         const mainText = userInput.value.trim();
         const selectedStyle = Array.from(styleCheckboxes).find(cb => cb.checked)?.value || '';
         
-        if (!headlineText || !subheadlineText || !mainText) {
-            alert('Veuillez remplir tous les champs pour générer une histoire.');
+        if (!mainText) {
+            alert('Veuillez entrer des informations sur votre enfant.');
             return;
         }
 
@@ -104,16 +58,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 200);
 
         try {
-            console.log('Envoi de la requête à:', `${window.location.origin}/generate-story`);
-            
             const response = await fetch(`${window.location.origin}/generate-story`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    headline: headlineText,
-                    subheadline: subheadlineText,
+                    headline: document.getElementById('headline').textContent,
+                    subheadline: document.getElementById('subheadline').textContent,
                     mainText: mainText,
                     style: selectedStyle
                 })
@@ -132,9 +84,9 @@ document.addEventListener('DOMContentLoaded', () => {
             progressBar.style.width = '100%';
             progressText.textContent = '100%';
             
-            // Afficher l'histoire formatée
+            // Afficher l'histoire
             setTimeout(() => {
-                storyOutput.innerHTML = formatStory(data.story);
+                storyOutput.innerHTML = data.story;
                 storyOutput.classList.add('visible');
                 
                 // Réinitialiser l'interface
