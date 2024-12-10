@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     // Configuration de l'API - URL exacte de votre service Render
-    const API_URL = window.location.origin;  // Utilise la même origine que le site
+    const API_URL = 'https://storygenerator-syqp.onrender.com';  // URL fixe du service
 
     const headline = document.getElementById('headline');
     const subheadline = document.getElementById('subheadline');
@@ -77,13 +77,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 200);
 
         try {
-            const requestUrl = `${API_URL}/generate-story`;
-            console.log('Envoi de la requête à:', requestUrl);
+            console.log('Envoi de la requête à:', `${API_URL}/generate-story`);
             
-            const response = await fetch(requestUrl, {
+            const response = await fetch(`${API_URL}/generate-story`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json'
                 },
                 body: JSON.stringify({
                     headline: headlineText,
@@ -93,14 +93,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 })
             });
 
+            console.log('Statut de la réponse:', response.status);
+            const responseText = await response.text();
+            console.log('Réponse brute:', responseText);
+
             if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Erreur serveur:', errorText);
-                throw new Error(`Erreur lors de la génération de l'histoire: ${errorText}`);
+                throw new Error(`Erreur HTTP: ${response.status} - ${responseText}`);
             }
 
-            const data = await response.json();
-            console.log('Réponse reçue:', data);
+            const data = JSON.parse(responseText);
+            console.log('Données parsées:', data);
             
             // Compléter la progression
             progress = 100;
@@ -122,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (error) {
             console.error('Erreur détaillée:', error);
-            alert(error.message || 'Une erreur est survenue lors de la génération de l\'histoire.');
+            alert('Une erreur est survenue lors de la génération de l\'histoire. Consultez la console pour plus de détails.');
             
             // Réinitialiser l'interface
             clearInterval(progressInterval);
