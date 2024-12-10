@@ -84,16 +84,14 @@ document.addEventListener('DOMContentLoaded', () => {
             progressBar.style.width = '100%';
             progressText.textContent = '100%';
             
-            // Formater et afficher l'histoire
+            // Afficher l'histoire et le bouton d'export
             setTimeout(() => {
-                // Formater l'histoire avec les classes CSS
-                const formattedStory = data.story
-                    .replace(/^Introduction/gm, '<strong>Introduction</strong>')
-                    .replace(/^Page \d[AB]?/gm, match => `<strong>${match}</strong>`)
-                    .replace(/^Option [AB][12]? : .*/gm, match => `<div class="Option">${match}</div>`)
-                    .replace(/^Que (?:décides-tu|fais-tu) \?/gm, '<strong>$&</strong>');
-
-                storyOutput.innerHTML = formattedStory;
+                storyOutput.innerHTML = `${data.story}
+                <div style="text-align: center; margin-top: 20px;">
+                    <button class="export-btn" onclick="alert('La fonctionnalité d\'export PDF sera bientôt disponible')">
+                        Exporter en PDF
+                    </button>
+                </div>`;
                 storyOutput.classList.add('visible');
                 
                 // Réinitialiser l'interface

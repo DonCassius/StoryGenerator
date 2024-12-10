@@ -189,28 +189,38 @@ button:disabled {
     white-space: pre-line;
 }
 
-/* Nouveaux styles pour l'histoire générée */
-.story-output strong,
-.story-output b,
-.story-output [class^="Page"],
-.story-output [class="Introduction"] {
-    font-weight: bold;
-    font-size: 1.2em;
-    color: #FFD700;
-    text-shadow: var(--glow-effect);
-}
-
-.story-output [class^="Option"] {
-    background: rgba(255, 215, 0, 0.1);
-    border: 1px solid rgba(255, 215, 0, 0.3);
-    border-radius: 8px;
-    padding: 10px 15px;
-    margin: 10px 0;
-    font-style: italic;
-}
-
 .story-output.visible {
     display: block;
+}
+
+/* Style pour le bouton d'export PDF */
+.export-btn {
+    margin-top: 20px;
+    background: linear-gradient(45deg, #2c3e50, #3498db);
+    border: none;
+    color: white;
+    padding: 15px 30px;
+    border-radius: 25px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    width: auto;
+    display: inline-block;
+}
+
+.export-btn:hover {
+    background: linear-gradient(45deg, #3498db, #2c3e50);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+}
+
+.export-btn:disabled {
+    background: linear-gradient(45deg, #95a5a6, #7f8c8d);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
 }
 
 .faq-section {
