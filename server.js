@@ -23,15 +23,14 @@ app.get('/', (req, res) => {
 
 // Configuration Replicate
 const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
-// Utilisation d'un modèle de test simple
-const REPLICATE_MODEL_VERSION = "replicate/hello-world:5c7d5dc6dd8bf75c1acaa8565735e7986bc5b66206b55cca93cb72c9bf15ccaa";
+// Utilisation du modèle Vicuna, qui est généralement accessible
+const REPLICATE_MODEL_VERSION = "replicate/vicuna-13b:6282abe6a492de4145d7bb601023762212f9ddbbe78278bd6771c8b3b2f2a13b";
 
 async function generateWithReplicate(prompt) {
     try {
         console.log('Generating with Replicate...');
         console.log('Using token:', REPLICATE_API_TOKEN ? 'Token présent' : 'Token manquant');
         
-        // Test simple de l'API Replicate
         const response = await fetch("https://api.replicate.com/v1/predictions", {
             method: "POST",
             headers: {
@@ -40,7 +39,13 @@ async function generateWithReplicate(prompt) {
             },
             body: JSON.stringify({
                 version: REPLICATE_MODEL_VERSION,
-                input: { text: prompt }
+                input: {
+                    prompt: prompt,
+                    max_length: 500,
+                    temperature: 0.7,
+                    top_p: 0.9,
+                    repetition_penalty: 1
+                }
             })
         });
 
@@ -54,9 +59,7 @@ async function generateWithReplicate(prompt) {
         const prediction = JSON.parse(responseText);
         console.log('Prediction started:', prediction.id);
         let result = await waitForResult(prediction.id);
-        
-        // Générer une histoire simple en attendant que nous résolvions le problème d'accès aux modèles
-        return `Histoire générée pour ${prompt}\n\nCeci est une histoire de test pendant que nous configurons l'accès à l'IA. Nous travaillons à résoudre le problème d'accès aux modèles plus avancés.`;
+        return result.output;
     } catch (error) {
         console.error('Error in generateWithReplicate:', error);
         throw error;
@@ -97,7 +100,6 @@ async function waitForResult(predictionId) {
     }
 }
 
-// Route de test pour vérifier le token
 app.get('/test-token', async (req, res) => {
     try {
         const response = await fetch("https://api.replicate.com/v1/models", {
@@ -123,12 +125,21 @@ app.post('/generate-story', async (req, res) => {
             throw new Error('Données manquantes dans la requête');
         }
 
-        const prompt = `${mainText} - Style: ${style}`;
+        const prompt = `Tu es un auteur d'histoires pour enfants. Écris une histoire courte et captivante en français avec ces éléments:
+
+        Titre: ${headline}
+        Sous-titre: ${subheadline}
+        Informations sur l'enfant: ${mainText}
+        Style: ${style}
+
+        L'histoire doit être adaptée aux enfants, positive, et faire environ 4-5 phrases.
+        L'enfant doit être le héros de l'histoire.
+        Réponds uniquement avec l'histoire, sans autre commentaire.`;
 
         console.log('Generating story with prompt:', prompt);
         const story = await generateWithReplicate(prompt);
         console.log('Story generated successfully:', story);
-        res.json({ story: story });
+        res.json({ story: Array.isArray(story) ? story.join('') : story });
     } catch (error) {
         console.error('Error in generate-story endpoint:', error);
         res.status(500).json({ 
