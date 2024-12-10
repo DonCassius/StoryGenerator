@@ -6,12 +6,11 @@ const fetch = require('node-fetch');
 
 const app = express();
 
-// Configuration CORS spécifique
+// Configuration CORS pour accepter toutes les origines
 app.use(cors({
-    origin: 'https://storygenerator-xg21.onrender.com',
+    origin: '*',
     methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Accept', 'Origin'],
-    credentials: true
+    allowedHeaders: ['Content-Type', 'Accept', 'Origin']
 }));
 
 app.use(express.json());
@@ -27,73 +26,89 @@ const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
 const REPLICATE_MODEL_VERSION = "meta/llama-2-70b-chat:02e509c789964a7ea8736978a43525956ef40397be9033abf9fd2badfe68c9e3";
 
 async function generateWithReplicate(prompt) {
-    console.log('Generating with Replicate...');
-    const response = await fetch("https://api.replicate.com/v1/predictions", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Token ${REPLICATE_API_TOKEN}`
-        },
-        body: JSON.stringify({
-            version: REPLICATE_MODEL_VERSION,
-            input: {
-                prompt: prompt,
-                max_tokens: 500,
-                temperature: 0.7,
-                top_p: 0.9,
-                system_prompt: "Tu es un auteur spécialisé dans les histoires pour enfants, expert en création d'histoires personnalisées, captivantes et adaptées à leur âge."
-            }
-        })
-    });
+    try {
+        console.log('Generating with Replicate...');
+        console.log('Using token:', REPLICATE_API_TOKEN ? 'Token présent' : 'Token manquant');
+        
+        const response = await fetch("https://api.replicate.com/v1/predictions", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Token ${REPLICATE_API_TOKEN}`
+            },
+            body: JSON.stringify({
+                version: REPLICATE_MODEL_VERSION,
+                input: {
+                    prompt: prompt,
+                    max_tokens: 500,
+                    temperature: 0.7,
+                    top_p: 0.9,
+                    system_prompt: "Tu es un auteur spécialisé dans les histoires pour enfants, expert en création d'histoires personnalisées, captivantes et adaptées à leur âge."
+                }
+            })
+        });
 
-    if (!response.ok) {
-        console.error('Replicate API error:', await response.text());
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const responseText = await response.text();
+        console.log('Replicate API response:', responseText);
+
+        if (!response.ok) {
+            throw new Error(`Replicate API error: ${response.status} - ${responseText}`);
+        }
+
+        const prediction = JSON.parse(responseText);
+        console.log('Prediction started:', prediction.id);
+        let result = await waitForResult(prediction.id);
+        return result.output;
+    } catch (error) {
+        console.error('Error in generateWithReplicate:', error);
+        throw error;
     }
-
-    const prediction = await response.json();
-    console.log('Prediction started:', prediction.id);
-    let result = await waitForResult(prediction.id);
-    return result.output;
 }
 
 async function waitForResult(predictionId) {
     console.log('Waiting for result...');
     while (true) {
-        const response = await fetch(`https://api.replicate.com/v1/predictions/${predictionId}`, {
-            headers: {
-                "Authorization": `Token ${REPLICATE_API_TOKEN}`
+        try {
+            const response = await fetch(`https://api.replicate.com/v1/predictions/${predictionId}`, {
+                headers: {
+                    "Authorization": `Token ${REPLICATE_API_TOKEN}`
+                }
+            });
+
+            const responseText = await response.text();
+            console.log('Check status response:', responseText);
+
+            if (!response.ok) {
+                throw new Error(`Error checking prediction status: ${response.status} - ${responseText}`);
             }
-        });
 
-        if (!response.ok) {
-            console.error('Error checking prediction status:', await response.text());
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const prediction = JSON.parse(responseText);
+            console.log('Prediction status:', prediction.status);
+            
+            if (prediction.status === "succeeded") {
+                return prediction;
+            } else if (prediction.status === "failed") {
+                throw new Error("La génération a échoué");
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        } catch (error) {
+            console.error('Error in waitForResult:', error);
+            throw error;
         }
-
-        const prediction = await response.json();
-        console.log('Prediction status:', prediction.status);
-        
-        if (prediction.status === "succeeded") {
-            return prediction;
-        } else if (prediction.status === "failed") {
-            throw new Error("La génération a échoué");
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 1000));
     }
 }
-
-// Middleware pour logger les requêtes
-app.use((req, res, next) => {
-    console.log(`${req.method} ${req.path}`, req.body);
-    next();
-});
 
 app.post('/generate-story', async (req, res) => {
     try {
         console.log('Received request for story generation');
+        console.log('Request body:', req.body);
+        
         const { headline, subheadline, mainText, style } = req.body;
+
+        if (!headline || !subheadline || !mainText || !style) {
+            throw new Error('Données manquantes dans la requête');
+        }
 
         const prompt = `Crée une histoire courte et captivante dans le style ${style} avec ces éléments:
 
@@ -114,11 +129,14 @@ app.post('/generate-story', async (req, res) => {
 
         console.log('Generating story with prompt:', prompt);
         const story = await generateWithReplicate(prompt);
-        console.log('Story generated successfully');
+        console.log('Story generated successfully:', story);
         res.json({ story: story.join('') });
     } catch (error) {
-        console.error('Error generating story:', error);
-        res.status(500).json({ error: 'Erreur lors de la génération de l\'histoire' });
+        console.error('Error in generate-story endpoint:', error);
+        res.status(500).json({ 
+            error: 'Erreur lors de la génération de l\'histoire',
+            details: error.message
+        });
     }
 });
 
