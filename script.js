@@ -92,10 +92,13 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Erreur serveur:', errorText);
                 throw new Error('Erreur lors de la génération de l\'histoire');
             }
 
             const data = await response.json();
+            console.log('Réponse reçue:', data);
             
             // Compléter la progression
             progress = 100;
