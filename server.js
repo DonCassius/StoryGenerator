@@ -25,7 +25,7 @@ async function generateStoryPartWithRetry(systemPrompt, userPrompt, maxRetries =
     for (let i = 0; i < maxRetries; i++) {
         try {
             console.log(`Attempt ${i + 1} of ${maxRetries}`);
-            const response = await fetch('https://api.anthropic.com/v1/complete', {  // Endpoint modifié
+            const response = await fetch('https://api.anthropic.com/v1/complete', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -34,7 +34,7 @@ async function generateStoryPartWithRetry(systemPrompt, userPrompt, maxRetries =
                 },
                 body: JSON.stringify({
                     model: 'claude-2.1',
-                    prompt: `\n\nHuman: ${userPrompt}\n\nAssistant:`,  // Format de prompt modifié
+                    prompt: `\n\nHuman: ${userPrompt}\n\nAssistant:`,
                     max_tokens_to_sample: 500,
                     temperature: 0.7,
                     stop_sequences: ["\n\nHuman:"]
@@ -53,7 +53,7 @@ async function generateStoryPartWithRetry(systemPrompt, userPrompt, maxRetries =
             }
 
             const result = await response.json();
-            return result.completion.trim();  // Champ de réponse modifié
+            return result.completion.trim();
         } catch (error) {
             if (i === maxRetries - 1) throw error;
             console.log(`Attempt failed, retrying... Error: ${error.message}`);
@@ -86,14 +86,16 @@ async function generateCompleteStory(mainInfo, style) {
         - Reste cohérent avec les informations fournies sur l'enfant
         - Adapte le style et le ton pour les enfants
         - Ne répète pas les instructions dans la sortie
-        - Écris directement l'histoire sans métacommentaires`;
+        - Écris directement l'histoire sans métacommentaires
+        - IMPORTANT : Écris toute l'histoire au PRÉSENT`;
 
         // Générer l'introduction
         const introPrompt = `${systemPrompt}
 
         Écris une introduction courte (3 phrases maximum) pour une histoire ${style}.
         Informations sur l'enfant : ${mainInfo}
-        L'histoire doit parler de ${name} et inclure ses activités préférées.`;
+        L'histoire doit parler de ${name} et inclure ses activités préférées.
+        Rappel : utilise le PRÉSENT.`;
 
         const intro = await generateStoryPartWithRetry(systemPrompt, introPrompt);
         if (!intro) throw new Error('Failed to generate introduction');
@@ -110,7 +112,9 @@ async function generateCompleteStory(mainInfo, style) {
         
         Que décides-tu ?
         Option A : [premier choix pour ${name}]
-        Option B : [deuxième choix pour ${name}]`;
+        Option B : [deuxième choix pour ${name}]
+
+        Rappel : utilise le PRÉSENT.`;
 
         const page1 = await generateStoryPartWithRetry(systemPrompt, page1Prompt);
         if (!page1) throw new Error('Failed to generate page 1');
@@ -133,7 +137,9 @@ async function generateCompleteStory(mainInfo, style) {
         
         Que fais-tu ?
         Option A1 : [premier choix pour ${name}]
-        Option A2 : [deuxième choix pour ${name}]`;
+        Option A2 : [deuxième choix pour ${name}]
+
+        Rappel : utilise le PRÉSENT.`;
 
         const page2A = await generateStoryPartWithRetry(systemPrompt, page2APrompt);
         if (!page2A) throw new Error('Failed to generate page 2A');
@@ -152,7 +158,9 @@ async function generateCompleteStory(mainInfo, style) {
         
         Que fais-tu ?
         Option B1 : [premier choix pour ${name}]
-        Option B2 : [deuxième choix pour ${name}]`;
+        Option B2 : [deuxième choix pour ${name}]
+
+        Rappel : utilise le PRÉSENT.`;
 
         const page2B = await generateStoryPartWithRetry(systemPrompt, page2BPrompt);
         if (!page2B) throw new Error('Failed to generate page 2B');
@@ -173,7 +181,9 @@ async function generateCompleteStory(mainInfo, style) {
 
             ${name} a choisi : ${choiceA1}
             Écris une fin positive (2-3 phrases) qui conclut bien l'histoire.
-            Termine par "FIN"`,
+            Termine par "FIN"
+
+            Rappel : utilise le PRÉSENT.`,
 
             `${systemPrompt}
 
@@ -184,7 +194,9 @@ async function generateCompleteStory(mainInfo, style) {
 
             ${name} a choisi : ${choiceA2}
             Écris une fin positive (2-3 phrases) qui conclut bien l'histoire.
-            Termine par "FIN"`,
+            Termine par "FIN"
+
+            Rappel : utilise le PRÉSENT.`,
 
             `${systemPrompt}
 
@@ -195,7 +207,9 @@ async function generateCompleteStory(mainInfo, style) {
 
             ${name} a choisi : ${choiceB1}
             Écris une fin positive (2-3 phrases) qui conclut bien l'histoire.
-            Termine par "FIN"`,
+            Termine par "FIN"
+
+            Rappel : utilise le PRÉSENT.`,
 
             `${systemPrompt}
 
@@ -206,7 +220,9 @@ async function generateCompleteStory(mainInfo, style) {
 
             ${name} a choisi : ${choiceB2}
             Écris une fin positive (2-3 phrases) qui conclut bien l'histoire.
-            Termine par "FIN"`
+            Termine par "FIN"
+
+            Rappel : utilise le PRÉSENT.`
         ];
 
         const endings = [];
