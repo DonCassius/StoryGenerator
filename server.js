@@ -23,8 +23,8 @@ app.get('/', (req, res) => {
 
 // Configuration Replicate
 const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
-// Utilisation d'un modèle français plus accessible
-const REPLICATE_MODEL_VERSION = "mistralai/mistral-7b-instruct-v0.1:83b6a56e7c828e667f21fd596c338fd4f0039b46bcfa18d973e8e70e455fda70";
+// Utilisation d'un modèle plus simple et public
+const REPLICATE_MODEL_VERSION = "replicate/llama-2-70b-chat:58d078176e02c219e11eb4da5a02a7830a283b14cf8f94537af893ccff5ee781";
 
 async function generateWithReplicate(prompt) {
     try {
@@ -40,11 +40,11 @@ async function generateWithReplicate(prompt) {
             body: JSON.stringify({
                 version: REPLICATE_MODEL_VERSION,
                 input: {
-                    prompt: `[INST]${prompt}[/INST]`,
+                    prompt: prompt,
+                    system_prompt: "Tu es un auteur spécialisé dans les histoires pour enfants, expert en création d'histoires personnalisées, captivantes et adaptées à leur âge. Tu réponds toujours en français.",
+                    max_tokens: 500,
                     temperature: 0.7,
-                    top_p: 0.9,
-                    max_new_tokens: 500,
-                    presence_penalty: 1
+                    top_p: 0.9
                 }
             })
         });
@@ -111,12 +111,12 @@ app.post('/generate-story', async (req, res) => {
             throw new Error('Données manquantes dans la requête');
         }
 
-        const prompt = `Tu es un auteur spécialisé dans les histoires pour enfants. 
-        Crée une histoire courte et captivante dans le style ${style} avec ces éléments:
+        const prompt = `Crée une histoire courte et captivante pour enfant avec ces éléments:
 
         Titre: ${headline}
         Sous-titre: ${subheadline}
         Informations sur l'enfant: ${mainText}
+        Style souhaité: ${style}
 
         Instructions:
         - L'histoire doit être en français
