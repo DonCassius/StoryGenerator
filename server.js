@@ -52,89 +52,86 @@ async function generateStoryPart(prompt) {
 }
 
 async function generateCompleteStory(mainInfo, style) {
-    // Générer l'introduction (Page 1)
-    const introPrompt = `Écris le début d'une histoire pour enfant de type "livre dont vous êtes le héros" (environ 500 mots).
+    // Générer l'introduction
+    const introPrompt = `Écris l'introduction d'une histoire interactive pour enfant.
     Informations sur l'enfant: ${mainInfo}
     Style: ${style}
     
-    Instructions:
-    - L'histoire doit être en français
-    - Elle doit être adaptée aux enfants
-    - À la fin du texte, propose 2 choix
-    - Pour chaque choix, indique "Si vous choisissez [choix], allez à la page X"
-    - Numérote les pages à partir de 1
-    
-    Format:
-    Page 1
-    [Texte de l'histoire...]
-    
-    Que décides-tu ?
-    - Si tu choisis [option 1], va à la page 2
-    - Si tu choisis [option 2], va à la page 3`;
+    Format attendu:
+    Introduction
+    [Un paragraphe qui présente l'enfant et le contexte de l'histoire]
+
+    1. Le début de l'aventure
+    [Un paragraphe qui décrit la situation initiale et présente un premier choix]
+
+    Que fais-tu ?
+    Option A : [Premier choix possible]
+    Option B : [Deuxième choix possible]`;
 
     const intro = await generateStoryPart(introPrompt);
 
-    // Générer les pages suivantes
-    const page2Prompt = `Continue l'histoire pour la page 2 (environ 500 mots).
+    // Générer les suites pour chaque choix
+    const choixAPrompt = `Continue l'histoire après le choix A.
     Contexte: ${mainInfo}
     Style: ${style}
     
-    Instructions:
-    - Continue l'histoire de manière cohérente
-    - À la fin, propose 2 nouveaux choix
-    - Pour chaque choix, indique la page à laquelle aller
+    Format attendu:
+    2A. [Titre de la suite]
+    [Un paragraphe qui décrit ce qui se passe après avoir choisi l'option A]
     
-    Format:
-    Page 2
-    [Texte de l'histoire...]
-    
-    Que décides-tu ?
-    - Si tu choisis [option 1], va à la page 4
-    - Si tu choisis [option 2], va à la page 5`;
+    Un nouveau choix se présente :
+    Option A1 : [Premier nouveau choix]
+    Option A2 : [Deuxième nouveau choix]`;
 
-    const page2 = await generateStoryPart(page2Prompt);
+    const choixA = await generateStoryPart(choixAPrompt);
 
-    const page3Prompt = `Continue l'histoire pour la page 3 (environ 500 mots).
+    const choixBPrompt = `Continue l'histoire après le choix B.
     Contexte: ${mainInfo}
     Style: ${style}
     
-    Instructions:
-    - Continue l'histoire de manière cohérente
-    - À la fin, propose 2 nouveaux choix
-    - Pour chaque choix, indique la page à laquelle aller
+    Format attendu:
+    2B. [Titre de la suite]
+    [Un paragraphe qui décrit ce qui se passe après avoir choisi l'option B]
     
-    Format:
-    Page 3
-    [Texte de l'histoire...]
-    
-    Que décides-tu ?
-    - Si tu choisis [option 1], va à la page 6
-    - Si tu choisis [option 2], va à la page 7`;
+    Un nouveau choix se présente :
+    Option B1 : [Premier nouveau choix]
+    Option B2 : [Deuxième nouveau choix]`;
 
-    const page3 = await generateStoryPart(page3Prompt);
+    const choixB = await generateStoryPart(choixBPrompt);
 
-    // Générer les fins possibles
-    const endings = await Promise.all([4, 5, 6, 7].map(async pageNum => {
-        const endingPrompt = `Écris la fin de l'histoire pour la page ${pageNum} (environ 500 mots).
+    // Générer les fins
+    const finsPrompts = [
+        `3A1. [Titre de la fin]
+        [Un paragraphe qui conclut l'histoire après avoir choisi l'option A1]
+        
+        Fin : [Une conclusion positive]`,
+        
+        `3A2. [Titre de la fin]
+        [Un paragraphe qui conclut l'histoire après avoir choisi l'option A2]
+        
+        Fin : [Une conclusion positive]`,
+        
+        `3B1. [Titre de la fin]
+        [Un paragraphe qui conclut l'histoire après avoir choisi l'option B1]
+        
+        Fin : [Une conclusion positive]`,
+        
+        `3B2. [Titre de la fin]
+        [Un paragraphe qui conclut l'histoire après avoir choisi l'option B2]
+        
+        Fin : [Une conclusion positive]`
+    ];
+
+    const fins = await Promise.all(finsPrompts.map(prompt => 
+        generateStoryPart(`Continue l'histoire.
         Contexte: ${mainInfo}
         Style: ${style}
         
-        Instructions:
-        - Termine l'histoire de manière satisfaisante
-        - Pas de choix à la fin, c'est une conclusion
-        
-        Format:
-        Page ${pageNum}
-        [Texte de la fin de l'histoire...]
-        
-        FIN`;
+        ${prompt}`)
+    ));
 
-        return generateStoryPart(endingPrompt);
-    }));
-
-    // Assembler toute l'histoire
-    const completeStory = `${intro}\n\n${page2}\n\n${page3}\n\n${endings.join('\n\n')}`;
-    return completeStory;
+    // Assembler l'histoire complète
+    return `${intro}\n\n${choixA}\n\n${choixB}\n\n${fins.join('\n\n')}`;
 }
 
 app.get('/', (req, res) => {

@@ -46,21 +46,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Formater l'histoire pour l'affichage
     function formatStory(story) {
-        // Diviser l'histoire en pages
-        const pages = story.split(/Page \d+/).filter(page => page.trim());
+        // Diviser l'histoire en sections
+        const sections = story.split(/\n\n+/);
         
-        // Formater chaque page
-        return pages.map((page, index) => {
-            const pageNum = index + 1;
-            return `
-                <div class="story-page">
-                    <h2 class="page-number">Page ${pageNum}</h2>
-                    <div class="page-content">
-                        ${page.trim().replace(/\n/g, '<br>')}
-                    </div>
-                </div>
-            `;
-        }).join('');
+        // Formater chaque section
+        return sections.map(section => {
+            // Détecter si c'est un titre de section
+            if (section.match(/^\d+[A-Z]?\d*\./)) {
+                return `<div class="story-page">
+                    <h2 class="page-number">${section}</h2>
+                </div>`;
+            }
+            // Détecter si c'est une section d'options
+            else if (section.toLowerCase().includes('option')) {
+                const options = section.split('\n').map(line => {
+                    if (line.trim().startsWith('Option')) {
+                        return `<div class="story-choice">${line.trim()}</div>`;
+                    }
+                    return line;
+                }).join('\n');
+                return `<div class="story-choices">${options}</div>`;
+            }
+            // Section normale de texte
+            else {
+                return `<div class="story-section">${section}</div>`;
+            }
+        }).join('\n');
     }
 
     generateBtn.addEventListener('click', async () => {
@@ -132,6 +143,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 generateBtn.disabled = false;
                 progressBar.style.width = '0%';
                 progressText.textContent = '0%';
+
+                // Faire défiler jusqu'à l'histoire
+                storyOutput.scrollIntoView({ behavior: 'smooth' });
             }, 500);
 
         } catch (error) {

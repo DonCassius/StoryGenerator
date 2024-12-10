@@ -216,14 +216,26 @@ button:disabled {
     text-shadow: var(--glow-effect);
 }
 
-.page-content {
+.story-section {
     font-size: 16px;
     line-height: 1.8;
+    margin-bottom: 20px;
     white-space: pre-line;
 }
 
-.page-content br {
-    margin-bottom: 10px;
+.story-choices {
+    margin: 20px 0;
+    padding: 20px;
+    background: rgba(255, 215, 0, 0.05);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 215, 0, 0.2);
+}
+
+.story-choice {
+    margin: 10px 0;
+    padding: 10px;
+    font-weight: bold;
+    color: var(--golden-text);
 }
 
 .faq-section {
