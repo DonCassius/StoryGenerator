@@ -15,7 +15,6 @@ app.use(cors({
 app.use(express.json());
 app.use(express.static(__dirname));
 
-// Correction du nom de la variable d'environnement
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 async function sleep(ms) {
@@ -30,8 +29,8 @@ async function generateStoryPartWithRetry(systemPrompt, userPrompt, maxRetries =
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-api-key': ANTHROPIC_API_KEY,
-                    'anthropic-version': '2023-06-01'
+                    'anthropic-version': '2023-06-01',
+                    'Authorization': `Bearer ${ANTHROPIC_API_KEY}`  // Correction du format de l'en-tête d'authentification
                 },
                 body: JSON.stringify({
                     model: 'claude-2.1',
