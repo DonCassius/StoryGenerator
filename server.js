@@ -16,10 +16,12 @@ app.use(express.json());
 app.use(express.static(__dirname));
 
 const HUGGINGFACE_API_TOKEN = process.env.HUGGINGFACE_API_TOKEN;
-const MODEL_URL = "https://api-inference.huggingface.co/models/bigscience/bloom";
+// Utilisation d'un modèle français plus adapté
+const MODEL_URL = "https://api-inference.huggingface.co/models/tiiuae/falcon-7b-instruct";
 
 async function generateStoryPart(prompt) {
     try {
+        console.log('Generating story part with prompt:', prompt);
         const response = await fetch(MODEL_URL, {
             method: "POST",
             headers: {
@@ -29,9 +31,9 @@ async function generateStoryPart(prompt) {
             body: JSON.stringify({
                 inputs: prompt,
                 parameters: {
-                    max_length: 2000,
-                    temperature: 0.8,
-                    top_p: 0.9,
+                    max_new_tokens: 1000,
+                    temperature: 0.9,
+                    top_p: 0.95,
                     do_sample: true,
                     return_full_text: false
                 }
@@ -44,6 +46,7 @@ async function generateStoryPart(prompt) {
         }
 
         const result = await response.json();
+        console.log('Generated text:', result);
         return result[0].generated_text.trim();
     } catch (error) {
         console.error('Error in generateStoryPart:', error);
@@ -53,81 +56,89 @@ async function generateStoryPart(prompt) {
 
 async function generateCompleteStory(mainInfo, style) {
     // Générer l'introduction
-    const introPrompt = `Écris l'introduction d'une histoire interactive pour enfant.
-    Informations sur l'enfant: ${mainInfo}
-    Style: ${style}
-    
-    Format attendu:
+    const introPrompt = `Tu es un auteur de livres pour enfants. Écris une histoire interactive de type "livre dont vous êtes le héros" avec ces informations :
+    Enfant : ${mainInfo}
+    Style : ${style}
+
+    Instructions :
+    1. Commence par une introduction qui présente l'enfant et le contexte
+    2. Continue avec la première situation et propose 2 choix
+    3. L'histoire doit être en français, positive et adaptée aux enfants
+    4. Utilise un style narratif engageant
+    5. Format attendu :
+
     Introduction
-    [Un paragraphe qui présente l'enfant et le contexte de l'histoire]
+    [Texte d'introduction]
 
-    1. Le début de l'aventure
-    [Un paragraphe qui décrit la situation initiale et présente un premier choix]
+    Page 1
+    [Texte de la première situation]
 
-    Que fais-tu ?
-    Option A : [Premier choix possible]
-    Option B : [Deuxième choix possible]`;
+    Que décides-tu ?
+    Option A : [Premier choix]
+    Option B : [Deuxième choix]`;
 
     const intro = await generateStoryPart(introPrompt);
 
     // Générer les suites pour chaque choix
     const choixAPrompt = `Continue l'histoire après le choix A.
-    Contexte: ${mainInfo}
-    Style: ${style}
-    
-    Format attendu:
-    2A. [Titre de la suite]
-    [Un paragraphe qui décrit ce qui se passe après avoir choisi l'option A]
-    
-    Un nouveau choix se présente :
-    Option A1 : [Premier nouveau choix]
-    Option A2 : [Deuxième nouveau choix]`;
+    Contexte : ${mainInfo}
+    Style : ${style}
+
+    Format attendu :
+    Page 2A
+    [Texte de ce qui se passe après le choix A]
+
+    Que fais-tu maintenant ?
+    Option A1 : [Nouveau choix 1]
+    Option A2 : [Nouveau choix 2]`;
 
     const choixA = await generateStoryPart(choixAPrompt);
 
     const choixBPrompt = `Continue l'histoire après le choix B.
-    Contexte: ${mainInfo}
-    Style: ${style}
-    
-    Format attendu:
-    2B. [Titre de la suite]
-    [Un paragraphe qui décrit ce qui se passe après avoir choisi l'option B]
-    
-    Un nouveau choix se présente :
-    Option B1 : [Premier nouveau choix]
-    Option B2 : [Deuxième nouveau choix]`;
+    Contexte : ${mainInfo}
+    Style : ${style}
+
+    Format attendu :
+    Page 2B
+    [Texte de ce qui se passe après le choix B]
+
+    Que fais-tu maintenant ?
+    Option B1 : [Nouveau choix 1]
+    Option B2 : [Nouveau choix 2]`;
 
     const choixB = await generateStoryPart(choixBPrompt);
 
     // Générer les fins
-    const finsPrompts = [
-        `3A1. [Titre de la fin]
-        [Un paragraphe qui conclut l'histoire après avoir choisi l'option A1]
-        
-        Fin : [Une conclusion positive]`,
-        
-        `3A2. [Titre de la fin]
-        [Un paragraphe qui conclut l'histoire après avoir choisi l'option A2]
-        
-        Fin : [Une conclusion positive]`,
-        
-        `3B1. [Titre de la fin]
-        [Un paragraphe qui conclut l'histoire après avoir choisi l'option B1]
-        
-        Fin : [Une conclusion positive]`,
-        
-        `3B2. [Titre de la fin]
-        [Un paragraphe qui conclut l'histoire après avoir choisi l'option B2]
-        
-        Fin : [Une conclusion positive]`
+    const finPrompts = [
+        `Écris la fin de l'histoire après le choix A1.
+        Format :
+        Page 3A1
+        [Texte de la fin]
+        FIN`,
+
+        `Écris la fin de l'histoire après le choix A2.
+        Format :
+        Page 3A2
+        [Texte de la fin]
+        FIN`,
+
+        `Écris la fin de l'histoire après le choix B1.
+        Format :
+        Page 3B1
+        [Texte de la fin]
+        FIN`,
+
+        `Écris la fin de l'histoire après le choix B2.
+        Format :
+        Page 3B2
+        [Texte de la fin]
+        FIN`
     ];
 
-    const fins = await Promise.all(finsPrompts.map(prompt => 
-        generateStoryPart(`Continue l'histoire.
-        Contexte: ${mainInfo}
-        Style: ${style}
-        
-        ${prompt}`)
+    const fins = await Promise.all(finPrompts.map(prompt => 
+        generateStoryPart(`${prompt}
+        Contexte : ${mainInfo}
+        Style : ${style}`)
     ));
 
     // Assembler l'histoire complète
@@ -146,7 +157,9 @@ app.post('/generate-story', async (req, res) => {
             throw new Error('Données manquantes dans la requête');
         }
 
+        console.log('Generating story with:', { mainText, style });
         const story = await generateCompleteStory(mainText, style);
+        console.log('Story generated successfully');
         res.json({ story: story });
     } catch (error) {
         console.error('Error in generate-story endpoint:', error);
