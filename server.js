@@ -28,7 +28,7 @@ async function generateStoryPart(prompt) {
                 'anthropic-version': '2023-06-01'
             },
             body: JSON.stringify({
-                model: 'claude-2',
+                model: 'claude-2.1',
                 max_tokens: 1000,
                 messages: [{
                     role: 'user',
