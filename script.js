@@ -1,8 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Configuration de l'API
-    const API_URL = process.env.NODE_ENV === 'production' 
-        ? 'https://votre-service-render.onrender.com'  // À remplacer par votre URL Render
-        : 'http://localhost:3000';
+    // Configuration de l'API - Utilisez l'URL de votre service Render
+    const API_URL = 'https://storygenerator-syqp.onrender.com';
 
     const headline = document.getElementById('headline');
     const subheadline = document.getElementById('subheadline');
@@ -79,6 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 200);
 
         try {
+            console.log('Envoi de la requête à:', `${API_URL}/generate-story`);
             const response = await fetch(`${API_URL}/generate-story`, {
                 method: 'POST',
                 headers: {
