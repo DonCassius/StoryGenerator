@@ -16,8 +16,8 @@ app.use(express.json());
 app.use(express.static(__dirname));
 
 const HUGGINGFACE_API_TOKEN = process.env.HUGGINGFACE_API_TOKEN;
-// Utilisation d'un modèle plus stable pour le français
-const MODEL_URL = "https://api-inference.huggingface.co/models/bigscience/bloomz";
+// Utilisation de l'endpoint d'inférence
+const MODEL_URL = "https://api-inference.huggingface.co/pipeline/text-generation/bigscience/bloomz-1b7";
 
 async function generateStoryPart(prompt) {
     try {
@@ -57,51 +57,49 @@ async function generateStoryPart(prompt) {
 async function generateCompleteStory(mainInfo, style) {
     try {
         // Générer l'introduction
-        const introPrompt = `Écris une histoire pour enfant en français.
-        Informations : ${mainInfo}
-        Style : ${style}
+        const introPrompt = `Tu es un auteur de livres pour enfants. Écris une histoire interactive.
 
-        Commence par une courte introduction qui présente le personnage.
+        Informations sur l'enfant : ${mainInfo}
+        Style de l'histoire : ${style}
+
+        Écris une introduction qui présente le personnage (3-4 phrases maximum).
         ###`;
 
         const intro = await generateStoryPart(introPrompt);
 
         // Générer la première page
-        const page1Prompt = `Suite de l'histoire :
-        ${intro}
+        const page1Prompt = `Continue cette histoire :
+        "${intro}"
 
-        Écris la première situation et propose deux choix.
-        Format :
-        [Situation]
-
+        Décris la première situation et propose deux choix.
+        Termine par :
+        
         Que décides-tu ?
-        - Option A : [Premier choix]
-        - Option B : [Deuxième choix]
+        - Option A : [choix 1]
+        - Option B : [choix 2]
         ###`;
 
         const page1 = await generateStoryPart(page1Prompt);
 
         // Générer les suites
-        const page2APrompt = `Suite de l'histoire après le choix A.
-        Propose deux nouveaux choix.
-        Format :
-        [Suite de l'histoire]
-
+        const page2APrompt = `Voici la suite après le choix A.
+        Décris ce qui se passe et propose deux nouveaux choix.
+        Termine par :
+        
         Que fais-tu ?
-        - Option A1 : [Premier choix]
-        - Option A2 : [Deuxième choix]
+        - Option A1 : [choix 1]
+        - Option A2 : [choix 2]
         ###`;
 
         const page2A = await generateStoryPart(page2APrompt);
 
-        const page2BPrompt = `Suite de l'histoire après le choix B.
-        Propose deux nouveaux choix.
-        Format :
-        [Suite de l'histoire]
-
+        const page2BPrompt = `Voici la suite après le choix B.
+        Décris ce qui se passe et propose deux nouveaux choix.
+        Termine par :
+        
         Que fais-tu ?
-        - Option B1 : [Premier choix]
-        - Option B2 : [Deuxième choix]
+        - Option B1 : [choix 1]
+        - Option B2 : [choix 2]
         ###`;
 
         const page2B = await generateStoryPart(page2BPrompt);
@@ -109,24 +107,20 @@ async function generateCompleteStory(mainInfo, style) {
         // Générer les fins
         const endings = await Promise.all([
             generateStoryPart(`Écris la fin de l'histoire après le choix A1.
-            Format :
-            [Texte de la fin]
-            FIN
+            Une fin positive et satisfaisante.
+            Termine par "FIN"
             ###`),
             generateStoryPart(`Écris la fin de l'histoire après le choix A2.
-            Format :
-            [Texte de la fin]
-            FIN
+            Une fin positive et satisfaisante.
+            Termine par "FIN"
             ###`),
             generateStoryPart(`Écris la fin de l'histoire après le choix B1.
-            Format :
-            [Texte de la fin]
-            FIN
+            Une fin positive et satisfaisante.
+            Termine par "FIN"
             ###`),
             generateStoryPart(`Écris la fin de l'histoire après le choix B2.
-            Format :
-            [Texte de la fin]
-            FIN
+            Une fin positive et satisfaisante.
+            Termine par "FIN"
             ###`)
         ]);
 
