@@ -15,7 +15,8 @@ app.use(cors({
 app.use(express.json());
 app.use(express.static(__dirname));
 
-const ANTHROPIC_API_TOKEN = process.env.ANTHROPIC_API_TOKEN;
+// Correction du nom de la variable d'environnement
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 async function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -29,7 +30,7 @@ async function generateStoryPartWithRetry(systemPrompt, userPrompt, maxRetries =
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-api-key': ANTHROPIC_API_TOKEN,
+                    'x-api-key': ANTHROPIC_API_KEY,
                     'anthropic-version': '2023-06-01'
                 },
                 body: JSON.stringify({
@@ -215,5 +216,5 @@ const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
     console.log(`Serveur démarré sur le port ${PORT}`);
     console.log(`Environnement: ${process.env.NODE_ENV}`);
-    console.log(`Anthropic API Key configurée: ${ANTHROPIC_API_TOKEN ? 'Oui' : 'Non'}`);
+    console.log(`Anthropic API Key configurée: ${ANTHROPIC_API_KEY ? 'Oui' : 'Non'}`);
 });
