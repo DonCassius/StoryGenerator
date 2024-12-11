@@ -224,10 +224,6 @@ async function generatePDF(story) {
             size: 24,
             font: 'Helvetica-Bold'
         },
-        subtitle: {
-            size: 20,
-            font: 'Helvetica-Bold'
-        },
         normal: {
             size: 14,
             font: 'Helvetica',
@@ -252,7 +248,7 @@ async function generatePDF(story) {
     function addText(text, options = {}) {
         const defaultOptions = {
             width: 495,
-            align: 'right',
+            align: 'left',
             lineGap: 8,
             continued: false
         };
@@ -271,10 +267,10 @@ async function generatePDF(story) {
 
     // Fonction helper pour ajouter un sous-titre
     function addSubtitle(text) {
-        doc.font(fonts.subtitle.font)
-           .fontSize(fonts.subtitle.size)
+        doc.font(fonts.normal.font)
+           .fontSize(fonts.normal.size)
            .text(text, {
-               align: 'center'
+               align: 'left'
            })
            .moveDown(1);
     }
@@ -286,7 +282,7 @@ async function generatePDF(story) {
            .text(text, {
                indent: 20,
                width: 475,
-               align: 'right'
+               align: 'left'
            })
            .moveDown(0.5);
     }
@@ -322,7 +318,7 @@ async function generatePDF(story) {
                 doc.font(fonts.normal.font)
                    .fontSize(fonts.normal.size)
                    .text(mainText, {
-                       align: 'right',
+                       align: 'left',
                        lineGap: 8
                    })
                    .moveDown(1);
@@ -341,7 +337,7 @@ async function generatePDF(story) {
                 doc.font(fonts.normal.font)
                    .fontSize(fonts.normal.size)
                    .text(cleanedText, {
-                       align: 'right',
+                       align: 'left',
                        lineGap: 8
                    })
                    .moveDown(1);
