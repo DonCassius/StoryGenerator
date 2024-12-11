@@ -203,7 +203,7 @@ async function generateCompleteStory(mainInfo, style) {
         console.log('All endings generated successfully');
 
         // Assembler l'histoire
-        return `Introduction\n${intro}\n\nPage 1\n${page1}\n\nPage 2A\n${page2A}\n\nPage 2B\n${page2B}\n\nPage 3A1\n${endings[0]}\n\nPage 3A2\n${endings[1]}\n\nPage 3B1\n${endings[2]}\n\nPage 3B2\n${endings[3]}`;
+        return `Introduction\n${intro}\n\nChapitre 1\n${page1}\n\nChapitre 2A\n${page2A}\n\nChapitre 2B\n${page2B}\n\nChapitre 3A1\n${endings[0]}\n\nChapitre 3A2\n${endings[1]}\n\nChapitre 3B1\n${endings[2]}\n\nChapitre 3B2\n${endings[3]}`;
     } catch (error) {
         console.error('Error generating story:', error);
         throw error;
@@ -243,6 +243,20 @@ async function generatePDF(story) {
             .replace(/Voici la suite.*?:/g, '')
             .trim();
     }
+
+    // Fonction pour créer un titre personnalisé
+    function createCustomTitle(story) {
+        const nameMatch = story.match(/(?:s'appelle|m'appelle)\s+(\w+)/i);
+        const name = nameMatch ? nameMatch[1] : '';
+        
+        const introMatch = story.match(/Introduction\n(.*?)(?=\n\n)/s);
+        const intro = introMatch ? introMatch[1] : '';
+        
+        const keywords = ['dragon', 'magie', 'aventure', 'quête', 'mystère', 'trésor', 'forêt', 'château', 'espace'];
+        let theme = keywords.find(k => intro.toLowerCase().includes(k)) || 'aventure';
+        
+        return name ? `La Grande ${theme.charAt(0).toUpperCase() + theme.slice(1)}\nde ${name}` : "Une Histoire\nExtraordinaire";
+    }
     
     // Fonction helper pour ajouter du texte
     function addText(text, options = {}) {
@@ -259,7 +273,7 @@ async function generatePDF(story) {
     function addTitle(text) {
         doc.font(fonts.title.font)
            .fontSize(fonts.title.size)
-           .text(text.toUpperCase(), {
+           .text(text, {
                align: 'center'
            })
            .moveDown(2);
@@ -267,6 +281,8 @@ async function generatePDF(story) {
 
     // Fonction helper pour ajouter un sous-titre
     function addSubtitle(text) {
+        // Remplacer "Page" par "Chapitre"
+        text = text.replace(/^Page /, 'Chapitre ');
         doc.font(fonts.normal.font)
            .fontSize(fonts.normal.size)
            .text(text, {
@@ -287,8 +303,9 @@ async function generatePDF(story) {
            .moveDown(0.5);
     }
 
-    // Ajouter une page de couverture
-    addTitle("Histoire Interactive\nPersonnalisée");
+    // Ajouter une page de couverture avec titre personnalisé
+    const customTitle = createCustomTitle(story);
+    addTitle(customTitle);
     doc.moveDown(2);
 
     // Traiter chaque section de l'histoire
