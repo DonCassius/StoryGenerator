@@ -225,33 +225,38 @@ async function generatePDF(story) {
             font: 'Helvetica-Bold'
         },
         subtitle: {
-            size: 18,
-            font: 'Helvetica-Bold'
-        },
-        heading: {
-            size: 16,
+            size: 20,
             font: 'Helvetica-Bold'
         },
         normal: {
-            size: 12,
+            size: 14,
             font: 'Helvetica',
-            lineGap: 7
+            lineGap: 8
         },
         option: {
-            size: 12,
+            size: 14,
             font: 'Helvetica-Oblique'
         }
     };
+
+    // Fonction pour nettoyer le texte des phrases de transition
+    function cleanText(text) {
+        return text
+            .replace(/Voici (?:une |la |)(?:introduction|suite).*?:/g, '')
+            .replace(/Voici le début.*?:/g, '')
+            .replace(/Voici la suite.*?:/g, '')
+            .trim();
+    }
     
-    // Fonction helper pour ajouter du texte avec retour à la ligne
+    // Fonction helper pour ajouter du texte
     function addText(text, options = {}) {
         const defaultOptions = {
             width: 495,
-            align: 'justify',
-            lineGap: 7,
+            align: 'right',
+            lineGap: 8,
             continued: false
         };
-        doc.text(text.trim(), { ...defaultOptions, ...options });
+        doc.text(cleanText(text), { ...defaultOptions, ...options });
     }
 
     // Fonction helper pour ajouter un titre
@@ -281,7 +286,7 @@ async function generatePDF(story) {
            .text(text, {
                indent: 20,
                width: 475,
-               align: 'left'
+               align: 'right'
            })
            .moveDown(0.5);
     }
@@ -312,13 +317,16 @@ async function generatePDF(story) {
             const parts = text.split(/Option [A-Z][12]? :/g);
             
             // Ajouter le texte principal
-            doc.font(fonts.normal.font)
-               .fontSize(fonts.normal.size)
-               .text(parts[0].trim(), {
-                   align: 'justify',
-                   lineGap: 7
-               })
-               .moveDown(1);
+            const mainText = cleanText(parts[0]);
+            if (mainText) {
+                doc.font(fonts.normal.font)
+                   .fontSize(fonts.normal.size)
+                   .text(mainText, {
+                       align: 'right',
+                       lineGap: 8
+                   })
+                   .moveDown(1);
+            }
 
             // Ajouter les options
             const options = text.match(/Option [A-Z][12]? : .*/g) || [];
@@ -328,13 +336,16 @@ async function generatePDF(story) {
             doc.moveDown(0.5);
         } else {
             // Ajouter le texte normal
-            doc.font(fonts.normal.font)
-               .fontSize(fonts.normal.size)
-               .text(text.trim(), {
-                   align: 'justify',
-                   lineGap: 7
-               })
-               .moveDown(1);
+            const cleanedText = cleanText(text);
+            if (cleanedText) {
+                doc.font(fonts.normal.font)
+                   .fontSize(fonts.normal.size)
+                   .text(cleanedText, {
+                       align: 'right',
+                       lineGap: 8
+                   })
+                   .moveDown(1);
+            }
         }
     }
 
