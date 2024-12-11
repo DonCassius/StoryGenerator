@@ -40,7 +40,7 @@ async function generateStoryPartWithRetry(prompt, maxRetries = 3) {
                         role: 'user',
                         content: prompt
                     }],
-                    system: "Tu es un auteur talentueux et créatif spécialisé dans la rédaction de livres pour enfants. Tu écris des histoires interactives et immersives qui captivent les jeunes lecteurs, tout en les enrichissant sur le plan émotionnel et intellectuel. Voici tes objectifs pour chaque histoire : - Parle à la 3ème personne. - Utilise toujours le prénom de l'enfant comme personnage principal et reste cohérent avec les informations fournies sur l'enfant. Fais en sorte que ${name} soit un héros courageux, curieux ou ingénieux, adapté à son univers. - Crée une intrigue unique et pleine de rebondissements. Évite les clichés et introduis des éléments surprenants ou magiques qui stimulent l'imagination. - Intègre des messages subtils ou des leçons importantes adaptées aux enfants, comme la persévérance, l'amitié, le courage ou l'empathie, sans être moralisateur. - Fais vivre une palette d'émotions à travers des défis excitants et des résolutions satisfaisantes. Les enfants doivent ressentir de l'enthousiasme, de la curiosité et une sensation d'accomplissement. - Utilise un langage simple mais riche, avec des descriptions colorées, des dialogues vivants et un rythme narratif entraînant. Assure-toi que le ton reste accessible et amusant pour les enfants. - Implique l'enfant dans des choix ou des interactions imaginaires qui le/la font évoluer dans l'histoire et renforcent l'identification. - Écris une histoire captivante et immersive sans répéter ces consignes dans la sortie."
+                    system: "Tu es un auteur talentueux et créatif spécialisé dans la rédaction de livres pour enfants. Tu écris des histoires interactives et immersives qui captivent les jeunes lecteurs, tout en les enrichissant sur le plan émotionnel et intellectuel. Voici tes objectifs pour chaque histoire : - Parle à la 3ème personne et au PRÉSENT. - Utilise toujours le prénom de l'enfant comme personnage principal et reste cohérent avec les informations fournies sur l'enfant. Fais en sorte que ${name} soit un héros courageux, curieux ou ingénieux, adapté à son univers. - Crée une intrigue unique et pleine de rebondissements. Évite les clichés et introduis des éléments surprenants ou magiques qui stimulent l'imagination. - Intègre des messages subtils ou des leçons importantes adaptées aux enfants, comme la persévérance, l'amitié, le courage ou l'empathie, sans être moralisateur. - Fais vivre une palette d'émotions à travers des défis excitants et des résolutions satisfaisantes. Les enfants doivent ressentir de l'enthousiasme, de la curiosité et une sensation d'accomplissement. - Utilise un langage simple mais riche, avec des descriptions colorées, des dialogues vivants et un rythme narratif entraînant. Assure-toi que le ton reste accessible et amusant pour les enfants. - Implique l'enfant dans des choix ou des interactions imaginaires qui le/la font évoluer dans l'histoire et renforcent l'identification. - Écris une histoire captivante et immersive sans répéter ces consignes dans la sortie ou me demander mon avis sur ce que tu viens de générer."
                 })
             });
 
@@ -129,7 +129,7 @@ async function generateCompleteStory(mainInfo, style) {
         const page1Prompt = `Voici le début d'une histoire pour ${name} :
         "${intro}"
         
-        Continue l'histoire (20-30 phrases) puis propose deux choix exactement comme ceci :
+        Continue l'histoire (2-3 phrases) puis propose deux choix exactement comme ceci :
         
         Que décides-tu ?
         Option A : [choix 1]
@@ -147,7 +147,7 @@ async function generateCompleteStory(mainInfo, style) {
         console.log('Generating page 2A...');
         const page2APrompt = `${name} choisit : ${choiceA}
         
-        Continue l'histoire (20-30 phrases) puis propose deux choix exactement comme ceci :
+        Continue l'histoire (2-3 phrases) puis propose deux choix exactement comme ceci :
         
         Que fais-tu ?
         Option A1 : [choix 1]
@@ -160,7 +160,7 @@ async function generateCompleteStory(mainInfo, style) {
         console.log('Generating page 2B...');
         const page2BPrompt = `${name} choisit : ${choiceB}
         
-        Continue l'histoire (20-30 phrases) puis propose deux choix exactement comme ceci :
+        Continue l'histoire (2-3 phrases) puis propose deux choix exactement comme ceci :
         
         Que fais-tu ?
         Option B1 : [choix 1]
@@ -178,19 +178,19 @@ async function generateCompleteStory(mainInfo, style) {
         console.log('Generating endings...');
         const endingPrompts = [
             `${name} choisit : ${choiceA1}
-            Écris une fin positive en 20-30 phrases.
+            Écris une fin positive en 2-3 phrases.
             Termine par "FIN"`,
 
             `${name} choisit : ${choiceA2}
-            Écris une fin positive en 20-30 phrases.
+            Écris une fin positive en 2-3 phrases.
             Termine par "FIN"`,
 
             `${name} choisit : ${choiceB1}
-            Écris une fin positive en 20-30 phrases.
+            Écris une fin positive en 2-3 phrases.
             Termine par "FIN"`,
 
             `${name} choisit : ${choiceB2}
-            Écris une fin positive en 20-30 phrases.
+            Écris une fin positive en 2-3 phrases.
             Termine par "FIN"`
         ];
 
@@ -219,44 +219,75 @@ async function generatePDF(story) {
     });
 
     // Configurer les styles
-    doc.font('Helvetica');
+    const fonts = {
+        title: {
+            size: 24,
+            font: 'Helvetica-Bold'
+        },
+        subtitle: {
+            size: 18,
+            font: 'Helvetica-Bold'
+        },
+        heading: {
+            size: 16,
+            font: 'Helvetica-Bold'
+        },
+        normal: {
+            size: 12,
+            font: 'Helvetica',
+            lineGap: 7
+        },
+        option: {
+            size: 12,
+            font: 'Helvetica-Oblique'
+        }
+    };
     
     // Fonction helper pour ajouter du texte avec retour à la ligne
     function addText(text, options = {}) {
         const defaultOptions = {
-            width: 500,
+            width: 495,
             align: 'justify',
+            lineGap: 7,
             continued: false
         };
-        doc.text(text, { ...defaultOptions, ...options });
+        doc.text(text.trim(), { ...defaultOptions, ...options });
     }
 
     // Fonction helper pour ajouter un titre
     function addTitle(text) {
-        doc.fontSize(24)
-           .font('Helvetica-Bold')
-           .text(text, { align: 'center' })
-           .moveDown(1);
+        doc.font(fonts.title.font)
+           .fontSize(fonts.title.size)
+           .text(text.toUpperCase(), {
+               align: 'center'
+           })
+           .moveDown(2);
     }
 
     // Fonction helper pour ajouter un sous-titre
     function addSubtitle(text) {
-        doc.fontSize(18)
-           .font('Helvetica-Bold')
-           .text(text, { align: 'center' })
-           .moveDown(0.5);
+        doc.font(fonts.subtitle.font)
+           .fontSize(fonts.subtitle.size)
+           .text(text, {
+               align: 'center'
+           })
+           .moveDown(1);
     }
 
     // Fonction helper pour ajouter une option
     function addOption(text) {
-        doc.fontSize(12)
-           .font('Helvetica-Oblique')
-           .text(text, { indent: 20 })
+        doc.font(fonts.option.font)
+           .fontSize(fonts.option.size)
+           .text(text, {
+               indent: 20,
+               width: 475,
+               align: 'left'
+           })
            .moveDown(0.5);
     }
 
     // Ajouter une page de couverture
-    addTitle("Histoire Interactive Personnalisée");
+    addTitle("Histoire Interactive\nPersonnalisée");
     doc.moveDown(2);
 
     // Traiter chaque section de l'histoire
@@ -270,6 +301,7 @@ async function generatePDF(story) {
         }
 
         // Ajouter le titre de section
+        doc.moveDown(1);
         addSubtitle(title);
 
         // Traiter le contenu
@@ -280,22 +312,29 @@ async function generatePDF(story) {
             const parts = text.split(/Option [A-Z][12]? :/g);
             
             // Ajouter le texte principal
-            doc.fontSize(12)
-               .font('Helvetica')
-               .text(parts[0].trim())
-               .moveDown(0.5);
+            doc.font(fonts.normal.font)
+               .fontSize(fonts.normal.size)
+               .text(parts[0].trim(), {
+                   align: 'justify',
+                   lineGap: 7
+               })
+               .moveDown(1);
 
             // Ajouter les options
             const options = text.match(/Option [A-Z][12]? : .*/g) || [];
             options.forEach(option => {
                 addOption(option);
             });
+            doc.moveDown(0.5);
         } else {
             // Ajouter le texte normal
-            doc.fontSize(12)
-               .font('Helvetica')
-               .text(text.trim())
-               .moveDown();
+            doc.font(fonts.normal.font)
+               .fontSize(fonts.normal.size)
+               .text(text.trim(), {
+                   align: 'justify',
+                   lineGap: 7
+               })
+               .moveDown(1);
         }
     }
 
@@ -303,11 +342,19 @@ async function generatePDF(story) {
     let pages = doc.bufferedPageRange();
     for (let i = 0; i < pages.count; i++) {
         doc.switchToPage(i);
-        doc.fontSize(10)
-           .text(`Page ${i + 1} sur ${pages.count}`, 
-                 50, 
-                 doc.page.height - 50,
-                 { align: 'center' });
+        
+        // Ajouter un pied de page
+        doc.font('Helvetica')
+           .fontSize(10)
+           .text(
+               `Page ${i + 1} sur ${pages.count}`,
+               50,
+               doc.page.height - 50,
+               {
+                   align: 'center',
+                   width: doc.page.width - 100
+               }
+           );
     }
 
     return doc;
