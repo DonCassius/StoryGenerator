@@ -7,5 +7,7 @@ services:
     envVars:
       - key: REPLICATE_API_TOKEN
         sync: false
+      - key: PORT
+        value: 10000
     plan: free
     autoDeploy: true
